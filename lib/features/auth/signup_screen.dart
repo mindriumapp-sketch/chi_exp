@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:gad_app_team/common/constants.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:gad_app_team/widgets/custom_appbar.dart';
 
 import 'package:gad_app_team/widgets/input_text_field.dart';
 import 'package:gad_app_team/widgets/primary_action_button.dart';
@@ -126,15 +127,9 @@ class _SignupScreenState extends State<SignupScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.grey100,
-      appBar: AppBar(
-        title: const Text('회원가입'),
-        leading: Padding(
-          padding: const EdgeInsets.all(AppSizes.padding),
-          child: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new),
-            onPressed: () {Navigator.pop(context);},
-          ),
-        ),
+      appBar: CustomAppBar(
+        title: '회원가입',
+        showHome: false,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(AppSizes.padding),
