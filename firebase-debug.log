@@ -1,0 +1,25 @@
+[debug] [2025-04-18T10:06:39.217Z] ----------------------------------------------------------------------
+[debug] [2025-04-18T10:06:39.220Z] Command:       /opt/homebrew/Cellar/node/23.11.0/bin/node /opt/homebrew/bin/firebase apps:create ios gad_app_team (ios) --bundle-id=com.mindrium.gadApp --json --project=mindrium-8ff46
+[debug] [2025-04-18T10:06:39.220Z] CLI Version:   14.1.0
+[debug] [2025-04-18T10:06:39.220Z] Platform:      darwin
+[debug] [2025-04-18T10:06:39.220Z] Node Version:  v23.11.0
+[debug] [2025-04-18T10:06:39.221Z] Time:          Fri Apr 18 2025 19:06:39 GMT+0900 (대한민국 표준시)
+[debug] [2025-04-18T10:06:39.221Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-04-18T10:06:39.313Z] Object "" in "firebase.json" has unknown property: {"additionalProperty":"flutter"}
+[debug] [2025-04-18T10:06:39.315Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-04-18T10:06:39.315Z] > authorizing via signed-in user (mindriumapp@gmail.com)
+[info] Create your IOS app in project mindrium-8ff46:
+[debug] [2025-04-18T10:06:39.317Z] Checked if tokens are valid: true, expires at: 1744974382751
+[debug] [2025-04-18T10:06:39.317Z] Checked if tokens are valid: true, expires at: 1744974382751
+[debug] [2025-04-18T10:06:39.318Z] >>> [apiv2][query] POST https://firebase.googleapis.com/v1beta1/projects/mindrium-8ff46/iosApps [none]
+[debug] [2025-04-18T10:06:39.318Z] >>> [apiv2][body] POST https://firebase.googleapis.com/v1beta1/projects/mindrium-8ff46/iosApps {"displayName":"gad_app_team (ios)","bundleId":"com.mindrium.gadApp"}
+[debug] [2025-04-18T10:06:40.113Z] <<< [apiv2][status] POST https://firebase.googleapis.com/v1beta1/projects/mindrium-8ff46/iosApps 409
+[debug] [2025-04-18T10:06:40.113Z] <<< [apiv2][body] POST https://firebase.googleapis.com/v1beta1/projects/mindrium-8ff46/iosApps {"error":{"code":409,"message":"Requested entity already exists","status":"ALREADY_EXISTS"}}
+[debug] [2025-04-18T10:06:40.114Z] Request to https://firebase.googleapis.com/v1beta1/projects/mindrium-8ff46/iosApps had HTTP Error: 409, Requested entity already exists
+[debug] [2025-04-18T10:06:40.346Z] FirebaseError: Request to https://firebase.googleapis.com/v1beta1/projects/mindrium-8ff46/iosApps had HTTP Error: 409, Requested entity already exists
+    at responseToError (/opt/homebrew/lib/node_modules/firebase-tools/lib/responseToError.js:52:12)
+    at RetryOperation._fn (/opt/homebrew/lib/node_modules/firebase-tools/lib/apiv2.js:312:77)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+[error] 
+[error] Error: Failed to create iOS app for project mindrium-8ff46. See firebase-debug.log for more info.
