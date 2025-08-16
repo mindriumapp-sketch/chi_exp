@@ -1,0 +1,77 @@
+# =======================
+# Flutter & Dart
+# =======================
+.dart_tool/
+.buildlog/
+.packages
+.pub-cache/
+.pub/
+.flutter-plugins
+.flutter-plugins-dependencies
+.flutter-versions
+.metadata
+build/
+coverage/
+
+# 앱은 pubspec.lock 커밋하는 게 일반적입니다.
+# 패키지(라이브러리)라면 아래를 해제해서 lockfile 무시 가능
+# pubspec.lock
+
+# =======================
+# Platform-specific
+# =======================
+# Android
+android/.gradle/
+android/local.properties
+android/key.properties
+android/**/GeneratedPluginRegistrant.java
+*.keystore
+*.jks
+
+# iOS/macOS
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/Flutter/Generated.xcconfig
+ios/Flutter/ephemeral/
+macos/Pods/
+macos/.symlinks/
+macos/Flutter/ephemeral/
+**/DerivedData/
+**/*.xcuserdatad
+**/*.xcscmblueprint
+
+# Windows / Linux
+windows/flutter/ephemeral/
+linux/flutter/ephemeral/
+
+# Web
+# build/가 이미 제외되어 컴파일 산출물(웹 빌드)이 커밋되지 않습니다.
+
+# =======================
+# Firebase (선택)
+# 공개 레포에서 제외하고 싶다면 주석 해제
+# =======================
+# android/app/google-services.json
+# ios/Runner/GoogleService-Info.plist
+# macos/Runner/GoogleService-Info.plist
+# web/firebase-messaging-sw.js  # 필요 시 재생성 스크립트 마련 권장
+
+# =======================
+# IDE / OS
+# =======================
+.vscode/
+.idea/
+*.iml
+*.ipr
+*.iws
+.DS_Store
+Thumbs.db
+
+# =======================
+# Logs & env
+# =======================
+*.log
+.env
+.env.*
