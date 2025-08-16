@@ -75,3 +75,6 @@ Thumbs.db
 *.log
 .env
 .env.*
+build/
+.dart_tool/
+.flutter-plugins-dependencies
