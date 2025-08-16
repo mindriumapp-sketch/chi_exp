@@ -1,9 +1,12 @@
-name: Deploy Flutter Web App to GitHub Pages
+name: Deploy Flutter Web to GitHub Pages
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
 
 jobs:
   build-and-deploy:
@@ -16,20 +19,31 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.29.3' # 사용하는 Flutter 버전으로 변경
+          flutter-version: '3.29.3'
 
-      - name: Install Dependencies
+      - name: Install dependencies
         run: flutter pub get
 
-      - name: Build Web
-        run: flutter build web --release
+      - name: Compute base-href
+        shell: bash
+        run: |
+          REPO="${GITHUB_REPOSITORY#*/}"
+          if [[ "$REPO" == *.github.io ]]; then
+            echo "BASE_HREF=/" >> $GITHUB_ENV
+          else
+            echo "BASE_HREF=/$REPO/" >> $GITHUB_ENV
+          fi
+
+      - name: Build web
+        run: flutter build web --release --base-href "${{ env.BASE_HREF }}" --pwa-strategy=none
 
       - name: Add .nojekyll
         run: echo > build/web/.nojekyll
 
       - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
+        uses: peaceiris/actions-gh-pages@v4
         with:
-          github_token: ${{MY_SECRET_KEY_NAME}} # repository에서 사용할 시크릿 키 이름
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: build/web
           publish_branch: gh-pages
+          force_orphan: true
