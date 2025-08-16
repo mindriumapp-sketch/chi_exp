@@ -1,0 +1,1 @@
+{"inputs":["/Users/shyn/chi_exp/web/*/index.html","/Users/shyn/chi_exp/web/flutter_bootstrap.js","/Users/shyn/development/flutter/bin/internal/engine.version"],"outputs":["/Users/shyn/chi_exp/build/web/*/index.html","/Users/shyn/chi_exp/build/web/flutter_bootstrap.js"],"buildKey":"[{\"compileTarget\":\"dart2js\",\"renderer\":\"canvaskit\",\"mainJsPath\":\"main.dart.js\"}]"}
