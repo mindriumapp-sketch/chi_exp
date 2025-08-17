@@ -1,4 +1,3 @@
-//TODO: text 입력 page
 import 'package:flutter/material.dart';
 import 'package:gad_app_team/widgets/custom_appbar.dart';
 // import 'package:provider/provider.dart';

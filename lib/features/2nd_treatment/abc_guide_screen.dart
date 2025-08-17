@@ -57,6 +57,7 @@ class _AbcGuideScreenState extends State<AbcGuideScreen> {
                     ),
                     onPressed: () async {
                       final startedAt = DateTime.now();
+                      final ctx = context;
 
                       // 기본 화면: 칩 버전
                       Widget next = AbcInputScreen(
@@ -100,9 +101,9 @@ class _AbcGuideScreenState extends State<AbcGuideScreen> {
                         debugPrint('default input');
                       }
 
-                      if (!mounted) return;
+                      if (!ctx.mounted) return;
                       Navigator.push(
-                        context,
+                        ctx,
                         MaterialPageRoute(builder: (_) => next),
                       );
                     },

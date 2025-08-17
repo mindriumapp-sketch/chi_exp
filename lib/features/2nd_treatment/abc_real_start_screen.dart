@@ -53,6 +53,7 @@ class AbcRealStartScreen extends StatelessWidget {
               FilledButton(
                 onPressed: () async {
                   final startedAt = DateTime.now();
+                  final ctx = context;
                   // 기본값: 칩 입력 화면
                   Widget next = AbcInputScreen(
                     startedAt: startedAt,
@@ -87,8 +88,9 @@ class AbcRealStartScreen extends StatelessWidget {
                   } catch (_) {
                     // 실패 시 기본(next) 사용
                   }
+                  if (!ctx.mounted) return;
                   Navigator.pushReplacement(
-                    context,
+                    ctx,
                     MaterialPageRoute(builder: (_) => next),
                   );
                 },
