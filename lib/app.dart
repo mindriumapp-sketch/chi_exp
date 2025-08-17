@@ -6,9 +6,6 @@ import 'package:gad_app_team/features/2nd_treatment/abc_guide_screen.dart';
 //notification
 import 'package:gad_app_team/features/menu/diary/diary_directory_screen.dart';
 
-//treatment
-import 'package:gad_app_team/features/2nd_treatment/abc_input_screen.dart';
-
 // Feature imports
 import 'package:gad_app_team/features/auth/login_screen.dart';
 import 'package:gad_app_team/features/auth/signup_screen.dart';
@@ -56,7 +53,6 @@ class MyApp extends StatelessWidget {
 
         //treatment
         '/week2': (context) => const AbcGuideScreen(),
-        '/abc': (context) => const AbcInputScreen(showGuide: false),
 
         '/diary_directory': (context) => NotificationDirectoryScreen(),
 

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:gad_app_team/common/constants.dart';
-import 'package:gad_app_team/features/2nd_treatment/abc_input_screen.dart';
 import 'package:gad_app_team/features/2nd_treatment/week2_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:gad_app_team/features/2nd_treatment/abc_input_screen_chip.dart';
+import 'package:gad_app_team/features/2nd_treatment/abc_input_screen_text.dart';
 
 class AbcGuideScreen extends StatefulWidget {
   const AbcGuideScreen({super.key});
@@ -52,16 +55,55 @@ class _AbcGuideScreenState extends State<AbcGuideScreen> {
                         borderRadius: BorderRadius.circular(AppSizes.borderRadius),
                       ),
                     ),
-                    onPressed: () {
+                    onPressed: () async {
                       final startedAt = DateTime.now();
+
+                      // 기본 화면: 칩 버전
+                      Widget next = AbcInputScreen(
+                        startedAt: startedAt,
+                      );
+
+                      try {
+                        final uid = FirebaseAuth.instance.currentUser?.uid;
+
+                        if (uid != null) {
+                          final snap = await FirebaseFirestore.instance
+                              .collection('chi_users')
+                              .doc(uid)
+                              .get();
+
+                          final data = snap.data();
+                          final dynamic rawCodes = data?['code'];
+
+                          int? codes;
+                          if (rawCodes is int) {
+                            codes = rawCodes;
+                          } else if (rawCodes is String) {
+                            codes = int.tryParse(rawCodes);
+                          }
+
+                          if (codes == 7890) {
+                            // 칩 입력 화면
+                            next = AbcInputScreen(
+                              startedAt: startedAt,
+                            );
+                            debugPrint('Chip input');
+                          } else if (codes == 1234) {
+                            // 텍스트 입력 화면
+                            next = AbcInputTextScreen(
+                              startedAt: startedAt,
+                            );
+                            debugPrint('Text input');
+                          }
+                        }
+                      } catch (_) {
+                        debugPrint('default input');
+                      }
+
+                      if (!mounted) return;
                       Navigator.push(
                         context,
-                        MaterialPageRoute(
-                          builder: (_) => AbcInputScreen(
-                            showGuide: false,
-                            startedAt: startedAt,
-                          ),
-                        ),
+                        MaterialPageRoute(builder: (_) => next),
                       );
                     },
                     child: const Text('작성하기'),

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../common/constants.dart';
-import 'abc_input_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:gad_app_team/features/2nd_treatment/abc_input_screen_chip.dart';
+import 'package:gad_app_team/features/2nd_treatment/abc_input_screen_text.dart';
 
 class AbcRealStartScreen extends StatelessWidget {
   const AbcRealStartScreen({super.key});
@@ -48,16 +51,45 @@ class AbcRealStartScreen extends StatelessWidget {
               ),
               const SizedBox(height: 48),
               FilledButton(
-                onPressed: () {
+                onPressed: () async {
                   final startedAt = DateTime.now();
+                  // 기본값: 칩 입력 화면
+                  Widget next = AbcInputScreen(
+                    startedAt: startedAt,
+                  );
+                  try {
+                    final uid = FirebaseAuth.instance.currentUser?.uid;
+                    if (uid != null) {
+                      final snap = await FirebaseFirestore.instance
+                          .collection('chi_users')
+                          .doc(uid)
+                          .get();
+                      final data = snap.data();
+                      final dynamic rawCodes = data?['code'];
+                      int? codes;
+                      if (rawCodes is int) {
+                        codes = rawCodes;
+                      } else if (rawCodes is String) {
+                        codes = int.tryParse(rawCodes);
+                      }
+                      if (codes == 7890) {
+                        next = AbcInputScreen(
+                          startedAt: startedAt,
+                        );
+                        debugPrint('Chip input');
+                      } else if (codes == 1234) {
+                        next = AbcInputTextScreen(
+                          startedAt: startedAt,
+                        );
+                        debugPrint('Text input');
+                      }
+                    }
+                  } catch (_) {
+                    // 실패 시 기본(next) 사용
+                  }
                   Navigator.pushReplacement(
                     context,
-                    MaterialPageRoute(
-                      builder: (_) => AbcInputScreen(
-                        showGuide: false,
-                        startedAt: startedAt,
-                      ),
-                    ),
+                    MaterialPageRoute(builder: (_) => next),
                   );
                 },
                 style: FilledButton.styleFrom(

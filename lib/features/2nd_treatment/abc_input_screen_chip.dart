@@ -27,7 +27,6 @@ class GridItem {
 class AbcInputScreen extends StatefulWidget {
   // final bool isExampleMode;
   final Map<String, String>? exampleData;
-  final bool showGuide;
   final String? abcId;
   final DateTime? startedAt;
 
@@ -35,7 +34,6 @@ class AbcInputScreen extends StatefulWidget {
     super.key,
     // this.isExampleMode = false,
     this.exampleData,
-    this.showGuide = true,
     this.abcId,
     this.startedAt,
   });
@@ -50,6 +48,28 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
   CollectionReference<Map<String, dynamic>> _chipsRef(String uid) {
     final userRef = FirebaseFirestore.instance.collection('chi_users').doc(uid);
     return userRef.collection('custom_abc_chips');
+  }
+
+  // --- Sequential ID helpers (per-user, per-collection) ---
+  DocumentReference<Map<String, dynamic>> _counterRef(String uid, String collection) {
+    return FirebaseFirestore.instance
+        .collection('chi_users')
+        .doc(uid)
+        .collection('counters')
+        .doc(collection);
+  }
+
+  Future<String> _nextSequencedDocId(String uid, String collection) async {
+    // Returns IDs like "abc_models_000001" / "abc_sessions_000001"
+    return FirebaseFirestore.instance.runTransaction<String>((tx) async {
+      final ref = _counterRef(uid, collection);
+      final snap = await tx.get(ref);
+      final current = (snap.data()?['seq'] as int?) ?? 0;
+      final next = current + 1;
+      tx.set(ref, {'seq': next}, SetOptions(merge: true));
+      final padded = next.toString().padLeft(6, '0');
+      return '${collection}_$padded';
+    });
   }
   int _currentStep = 0;
   // Sub-step for C-step questions
@@ -1870,11 +1890,13 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
             TextButton(
               child: const Text('확인'),
               onPressed: () async {
+                final newModelId = await _nextSequencedDocId(userId, 'abc_models');
                 await firestore
                     .collection('chi_users')
                     .doc(userId)
                     .collection('abc_models')
-                    .add(data);
+                    .doc(newModelId)
+                    .set(data);
 
                 await _saveSelectedChipsToFirestore();
 
@@ -1891,7 +1913,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                       .doc(_sessionId)
                       .set({
                     'status': 'completed',
-                    'screen': 'AbcInputScreen/${_currentStepKey()}',
+                    'screen': 'AbcInputScreen_chip/${_currentStepKey()}',
                     'endedAt': FieldValue.serverTimestamp(),
                     'durationMs': widget.startedAt != null
                         ? DateTime.now().millisecondsSinceEpoch - widget.startedAt!.millisecondsSinceEpoch
@@ -1948,18 +1970,17 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
     try {
       final uid = FirebaseAuth.instance.currentUser?.uid;
       if (uid == null) return;
-      final sessions = FirebaseFirestore.instance
-          .collection('chi_users')
-          .doc(uid)
-          .collection('abc_sessions');
-      final ref = await sessions.add({
+      final userDoc = FirebaseFirestore.instance.collection('chi_users').doc(uid);
+      final sessions = userDoc.collection('abc_sessions');
+      final newSessionId = await _nextSequencedDocId(uid, 'abc_sessions');
+      await sessions.doc(newSessionId).set({
         'status': 'in_progress',
-        'screen': 'AbcInputScreen',
-        'experimentCondition': null,
+        'screen': 'AbcInputScreen_chip',
+        'experimentCondition': 'Chip_input',
         'startedAt': widget.startedAt ?? FieldValue.serverTimestamp(),
         'createdAt': FieldValue.serverTimestamp(),
       });
-      _sessionId = ref.id;
+      _sessionId = newSessionId;
 
       _eventBuffer.clear();
       _flushTimer?.cancel();
@@ -2089,7 +2110,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
           .doc(_sessionId)
           .set({
         'status': 'abandoned',
-        'screen': 'AbcInputScreen/${_currentStepKey()}',
+        'screen': 'AbcInputScreen_chip/${_currentStepKey()}',
         'endedAt': FieldValue.serverTimestamp(),
         'reason': reason,
         'keyPresses': _keyPresses,
