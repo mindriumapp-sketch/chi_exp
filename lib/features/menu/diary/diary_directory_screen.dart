@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:gad_app_team/common/constants.dart';
 import 'package:gad_app_team/widgets/card_container.dart';
 import 'package:intl/intl.dart';
+import 'package:gad_app_team/widgets/aspect_viewport.dart';
 
 /// Firestore의 `abc_models` 문서를 화면용 모델로 매핑
 class AbcModel {
@@ -213,7 +214,10 @@ class _NotificationDirectoryScreenState
     }
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
-      body: SafeArea(
+      body: AspectViewport(
+        aspect: 9 / 16,
+        background: Colors.grey.shade100,
+        child:SafeArea(
         child: Column(
           children: [
             Expanded(
@@ -223,7 +227,7 @@ class _NotificationDirectoryScreenState
             ),
           ],
         ),
-      ),
+      ),)
     );
   }
 }

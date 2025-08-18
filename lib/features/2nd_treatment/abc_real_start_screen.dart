@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:gad_app_team/features/2nd_treatment/abc_input_screen_chip.dart';
 import 'package:gad_app_team/features/2nd_treatment/abc_input_screen_text.dart';
+import 'package:gad_app_team/widgets/aspect_viewport.dart';
 
 class AbcRealStartScreen extends StatelessWidget {
   const AbcRealStartScreen({super.key});
@@ -12,7 +13,10 @@ class AbcRealStartScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SafeArea(
+      body: AspectViewport(
+        aspect: 9 / 16,
+        background: Colors.grey.shade100,
+        child:SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
           child: Column(
@@ -111,7 +115,7 @@ class AbcRealStartScreen extends StatelessWidget {
             ],
           ),
         ),
-      ),
+      ),)
     );
   }
 }

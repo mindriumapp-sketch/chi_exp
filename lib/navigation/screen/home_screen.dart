@@ -5,6 +5,7 @@ import 'package:gad_app_team/widgets/card_container.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import 'package:gad_app_team/widgets/aspect_viewport.dart';
 import 'package:gad_app_team/navigation/navigation.dart';
 import 'package:gad_app_team/data/daycounter.dart';
 import 'package:gad_app_team/data/user_provider.dart';
@@ -45,7 +46,11 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.grey100,
-      body: _buildBody(),
+      body: AspectViewport(
+        aspect: 9 / 16,
+        background: AppColors.grey100,
+        child: _buildBody(),
+      ),
       bottomNavigationBar: CustomNavigationBar(
         selectedIndex: _selectedIndex,
         onDestinationSelected: _onDestinationSelected,

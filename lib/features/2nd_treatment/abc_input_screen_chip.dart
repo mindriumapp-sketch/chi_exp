@@ -7,6 +7,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
 import 'package:flutter/services.dart';
+import 'package:gad_app_team/widgets/aspect_viewport.dart';
 // import 'package:gad_app_team/data/user_provider.dart';
 
 class GridItem {
@@ -847,7 +848,10 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
       child: Scaffold(
         backgroundColor: Colors.grey.shade100,
         appBar: CustomAppBar(title: '일기 쓰기'),
-        body: MediaQuery(
+        body: AspectViewport(
+        aspect: 9 / 16,
+        background: Colors.grey.shade100,
+        child:MediaQuery(
           data: MediaQuery.of(context).copyWith(textScaler: const TextScaler.linear(1)),
           child: SafeArea(
             child: KeyboardListener(
@@ -881,7 +885,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
               ),
             ),
           ),
-        ),
+        ),),
         bottomNavigationBar: Padding(
           padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
           child: NavigationButtons(

@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:gad_app_team/features/2nd_treatment/abc_input_screen_chip.dart';
 import 'package:gad_app_team/features/2nd_treatment/abc_input_screen_text.dart';
+import 'package:gad_app_team/widgets/aspect_viewport.dart';
 
 class AbcGuideScreen extends StatefulWidget {
   const AbcGuideScreen({super.key});
@@ -18,7 +19,10 @@ class _AbcGuideScreenState extends State<AbcGuideScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
-      body: Padding(
+      body: AspectViewport(
+        aspect: 9 / 16,
+        background: AppColors.grey100,
+        child: Padding(
         padding: const EdgeInsets.all(AppSizes.padding),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -139,7 +143,7 @@ class _AbcGuideScreenState extends State<AbcGuideScreen> {
             ),
           ],
         ),
-      ),
+      ),)
     );
   }
 }

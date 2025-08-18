@@ -3,6 +3,7 @@ import 'package:gad_app_team/common/constants.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:gad_app_team/widgets/aspect_viewport.dart';
 
 import 'package:gad_app_team/widgets/input_text_field.dart';
 import 'package:gad_app_team/widgets/primary_action_button.dart';
@@ -163,46 +164,48 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.grey100,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppSizes.padding),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              const SizedBox(height: AppSizes.space),
-              Center(
-                child: Image.asset(
-                  'assets/image/logo.png',
-                  height: 160,
-                  width: 160,
+      body: AspectViewport(
+        aspect: 9 / 16,
+        background: AppColors.grey100,
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(AppSizes.padding),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const SizedBox(height: AppSizes.space),
+                Center(
+                  child: Image.asset(
+                    'assets/image/logo.png',
+                    height: 160,
+                    width: 160,
+                  ),
                 ),
-              ),
-              const SizedBox(height: AppSizes.space),
-              InputTextField(
-                controller: emailController,
-                fillColor:Colors.white,
-                label: '이메일',
-                keyboardType: TextInputType.emailAddress,
-              ),
-              const SizedBox(height: AppSizes.space),
-              InputTextField(
-                controller: passwordController,
-                fillColor:Colors.white,
-                label: '비밀번호',
-                obscureText: true,
-              ),
-              const SizedBox(height: AppSizes.space),
-
-              PrimaryActionButton(
-                text: '로그인',
-                onPressed: _login,
-              ),
-
-              TextButton(
-                onPressed: _goToSignup,
-                child: const Text('회원가입')
-              ),
-            ],
+                const SizedBox(height: AppSizes.space),
+                InputTextField(
+                  controller: emailController,
+                  fillColor: Colors.white,
+                  label: '이메일',
+                  keyboardType: TextInputType.emailAddress,
+                ),
+                const SizedBox(height: AppSizes.space),
+                InputTextField(
+                  controller: passwordController,
+                  fillColor: Colors.white,
+                  label: '비밀번호',
+                  obscureText: true,
+                ),
+                const SizedBox(height: AppSizes.space),
+                PrimaryActionButton(
+                  text: '로그인',
+                  onPressed: _login,
+                ),
+                TextButton(
+                  onPressed: _goToSignup,
+                  child: const Text('회원가입'),
+                ),
+              ],
+            ),
           ),
         ),
       ),

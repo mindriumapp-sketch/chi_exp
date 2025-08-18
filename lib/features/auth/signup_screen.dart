@@ -7,6 +7,7 @@ import 'package:gad_app_team/widgets/custom_appbar.dart';
 import 'package:gad_app_team/widgets/input_text_field.dart';
 import 'package:gad_app_team/widgets/primary_action_button.dart';
 import 'package:gad_app_team/widgets/passwod_field.dart';
+import 'package:gad_app_team/widgets/aspect_viewport.dart';
 
 /// 회원가입 화면 - 이메일, 이름, 비밀번호, 마인드리움 코드로 회원가입
 class SignupScreen extends StatefulWidget {
@@ -131,54 +132,58 @@ class _SignupScreenState extends State<SignupScreen> {
         title: '회원가입',
         showHome: false,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppSizes.padding),
-        child: Column(
-          children: [
-            InputTextField(
-              controller: emailController, 
-              fillColor:Colors.white,
-              label: '이메일', 
-              keyboardType: TextInputType.emailAddress
-            ),
-            const SizedBox(height: AppSizes.space),
-            InputTextField(
-              controller: nameController, 
-              label: '이름(닉네임)',
-              fillColor:Colors.white,
-            ),
-            const SizedBox(height: AppSizes.space),
-            PasswordTextField(
-              controller: passwordController,
-              label: '비밀번호',
-              isVisible: showPassword,
-              toggleVisibility: () {
-                setState(() {
-                  showPassword = !showPassword;
-                });
-              },
-            ),
-            const SizedBox(height: AppSizes.space),
-            PasswordTextField(
-              controller: confirmPasswordController,
-              label: '비밀번호 확인',
-              isVisible: showConfirmPassword,
-              toggleVisibility: () {
-                setState(() {
-                  showConfirmPassword = !showConfirmPassword;
-                });
-              },
-            ),
-            const SizedBox(height: AppSizes.space),
-            InputTextField(
-              controller: codeController, 
-              label: '마인드리움 코드',
-              fillColor:Colors.white,
-            ),
-            const SizedBox(height: AppSizes.space),
-            const SizedBox(height: AppSizes.space),
-            PrimaryActionButton(text: '회원가입', onPressed: _signup),
-          ],
+      body: AspectViewport(
+        aspect: 9 / 16,
+        background: AppColors.grey100,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(AppSizes.padding),
+          child: Column(
+            children: [
+              InputTextField(
+                controller: emailController,
+                fillColor: Colors.white,
+                label: '이메일',
+                keyboardType: TextInputType.emailAddress,
+              ),
+              const SizedBox(height: AppSizes.space),
+              InputTextField(
+                controller: nameController,
+                label: '이름(닉네임)',
+                fillColor: Colors.white,
+              ),
+              const SizedBox(height: AppSizes.space),
+              PasswordTextField(
+                controller: passwordController,
+                label: '비밀번호',
+                isVisible: showPassword,
+                toggleVisibility: () {
+                  setState(() {
+                    showPassword = !showPassword;
+                  });
+                },
+              ),
+              const SizedBox(height: AppSizes.space),
+              PasswordTextField(
+                controller: confirmPasswordController,
+                label: '비밀번호 확인',
+                isVisible: showConfirmPassword,
+                toggleVisibility: () {
+                  setState(() {
+                    showConfirmPassword = !showConfirmPassword;
+                  });
+                },
+              ),
+              const SizedBox(height: AppSizes.space),
+              InputTextField(
+                controller: codeController,
+                label: '마인드리움 코드',
+                fillColor: Colors.white,
+              ),
+              const SizedBox(height: AppSizes.space),
+              const SizedBox(height: AppSizes.space),
+              PrimaryActionButton(text: '회원가입', onPressed: _signup),
+            ],
+          ),
         ),
       ),
     );

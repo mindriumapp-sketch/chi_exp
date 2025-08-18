@@ -3,6 +3,7 @@ import 'package:gad_app_team/common/constants.dart';
 import 'package:gad_app_team/features/2nd_treatment/abc_activate_screen.dart';
 import 'package:gad_app_team/widgets/custom_appbar.dart';
 import 'package:gad_app_team/widgets/navigation_button.dart';
+import 'package:gad_app_team/widgets/aspect_viewport.dart';
 
 class Week2Screen extends StatefulWidget {
   const Week2Screen({super.key});
@@ -17,7 +18,10 @@ class _Week2ScreenState extends State<Week2Screen> {
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
       appBar: CustomAppBar(title: '일기 쓰기 (튜토리얼)'),
-      body: Padding(
+      body: AspectViewport(
+        aspect: 9 / 16,
+        background: Colors.grey.shade100,
+        child:Padding(
         padding: const EdgeInsets.all(AppSizes.padding),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -57,7 +61,7 @@ class _Week2ScreenState extends State<Week2Screen> {
             ),
           ],
         ),
-      ),
+      ),)
     );
   }
 }

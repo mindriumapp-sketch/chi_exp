@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:gad_app_team/widgets/custom_appbar.dart';
 import 'package:gad_app_team/widgets/navigation_button.dart';
 import 'abc_belief_screen.dart';
+import 'package:gad_app_team/widgets/aspect_viewport.dart';
 
 class AbcActivateScreen extends StatefulWidget {
   const AbcActivateScreen({super.key});
@@ -15,7 +16,10 @@ class _AbcActivateScreenState extends State<AbcActivateScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: CustomAppBar(title: '일기 쓰기 (튜토리얼)'),
-      body: Stack(
+      body: AspectViewport(
+        aspect: 9 / 16,
+        background: Colors.grey.shade100,
+        child: Stack(
         children: [
           Positioned.fill(
             child: Image.asset(
@@ -65,7 +69,7 @@ class _AbcActivateScreenState extends State<AbcActivateScreen> {
             ),
           ),
         ],
-      ),
+      ),)
     );
   }
 }

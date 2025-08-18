@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 import 'package:gad_app_team/widgets/input_text_field.dart';
 import 'package:gad_app_team/widgets/card_container.dart';
 import 'package:gad_app_team/widgets/passwod_field.dart';
+import 'package:gad_app_team/widgets/aspect_viewport.dart';
 
 class MyInfoScreen extends StatefulWidget {
   const MyInfoScreen({super.key});
@@ -96,7 +97,10 @@ class _MyInfoScreenState extends State<MyInfoScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.grey100,
-      body: SafeArea(
+      body: AspectViewport(
+        aspect: 9 / 16,
+        background: Colors.grey.shade100,
+        child:SafeArea(
         child: ListView(
           padding: const EdgeInsets.symmetric(horizontal:AppSizes.padding),
           children: [
@@ -108,7 +112,7 @@ class _MyInfoScreenState extends State<MyInfoScreen> {
             ),
           ],
         ),
-      ),
+      ),)
     );
   }
 

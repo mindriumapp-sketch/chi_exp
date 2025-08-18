@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:gad_app_team/widgets/custom_appbar.dart';
 import 'package:gad_app_team/widgets/navigation_button.dart';
 import 'package:gad_app_team/features/2nd_treatment/abc_real_start_screen.dart';
+import 'package:gad_app_team/widgets/aspect_viewport.dart';
 
 class AbcConsequenceScreen extends StatelessWidget {
   const AbcConsequenceScreen({super.key});
@@ -10,7 +11,10 @@ class AbcConsequenceScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: CustomAppBar(title: '일기 쓰기 (튜토리얼)'),
-      body: Stack(
+      body: AspectViewport(
+        aspect: 9 / 16,
+        background: Colors.grey.shade100,
+        child:Stack(
         children: [
           Positioned.fill(
             child: Image.asset(
@@ -60,7 +64,7 @@ class AbcConsequenceScreen extends StatelessWidget {
             ),
           ),
         ],
-      ),
+      ),)
     );
   }
 }

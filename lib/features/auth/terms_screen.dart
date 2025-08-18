@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:gad_app_team/common/constants.dart';
 import 'package:gad_app_team/widgets/custom_appbar.dart';
+import 'package:gad_app_team/widgets/aspect_viewport.dart';
 
 /// 약관 동의 화면
 class TermsScreen extends StatefulWidget {
@@ -155,75 +156,79 @@ class _TermsScreenState extends State<TermsScreen> {
         title: '약관 동의',
         showHome: false,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(AppSizes.padding),
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: AppSizes.space),
-              const Icon(Icons.verified_user, size: 100, color: AppColors.indigo),
-              const SizedBox(height: AppSizes.space*2),
+      body: AspectViewport(
+        aspect: 9 / 16,
+        background: AppColors.grey100,
+        child: Padding(
+          padding: const EdgeInsets.all(AppSizes.padding),
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: AppSizes.space),
+                const Icon(Icons.verified_user, size: 100, color: AppColors.indigo),
+                const SizedBox(height: AppSizes.space*2),
 
-              _buildCheckTile(
-                title: '이용약관 동의',
-                summary: _termsSummary,
-                value: agreedTerms,
-                onChanged: (v) => setState(() => agreedTerms = v ?? false),
-                onViewPressed: () {
-                  _showDialog('이용약관', _termsContent);
-                },
-                agreeLabel: '이용약관에 동의합니다.',
-              ),
-              const SizedBox(height: AppSizes.space),
-
-              _buildCheckTile(
-                title: '개인정보 수집 및 이용 동의',
-                summary: _privacySummary,
-                value: agreedPrivacy,
-                onChanged: (v) => setState(() => agreedPrivacy = v ?? false),
-                onViewPressed: () {
-                  _showDialog('개인정보 처리방침', _privacyContent);
-                },
-                agreeLabel: '개인정보 수집·이용에 동의합니다.',
-              ),
-              const SizedBox(height: AppSizes.space),
-              _buildCheckTile(
-                title: '민감정보(정신건강 관련 설문·일기) 처리 동의',
-                summary: _sensitiveSummary,
-                value: agreedSensitive,
-                onChanged: (v) => setState(() => agreedSensitive = (v ?? false)),
-                onViewPressed: () {
-                  _showDialog('민감정보 처리 동의', _sensitiveConsent);
-                },
-                agreeLabel: '민감정보 처리에 동의합니다.',
-              ),
-
-              const SizedBox(height: AppSizes.space * 2),
-
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: allAgreed
-                      ? () {
-                          Navigator.pushNamed(context, '/signup', arguments: {
-                            'email': email,
-                            'password': password,
-                          });
-                        }
-                      : null,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: Colors.indigo,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppSizes.borderRadius),
-                    ),
-                    minimumSize: const Size.fromHeight(54),
-                  ),
-                  child: const Text('다음으로'),
+                _buildCheckTile(
+                  title: '이용약관 동의',
+                  summary: _termsSummary,
+                  value: agreedTerms,
+                  onChanged: (v) => setState(() => agreedTerms = v ?? false),
+                  onViewPressed: () {
+                    _showDialog('이용약관', _termsContent);
+                  },
+                  agreeLabel: '이용약관에 동의합니다.',
                 ),
-              ),
-            ],
+                const SizedBox(height: AppSizes.space),
+
+                _buildCheckTile(
+                  title: '개인정보 수집 및 이용 동의',
+                  summary: _privacySummary,
+                  value: agreedPrivacy,
+                  onChanged: (v) => setState(() => agreedPrivacy = v ?? false),
+                  onViewPressed: () {
+                    _showDialog('개인정보 처리방침', _privacyContent);
+                  },
+                  agreeLabel: '개인정보 수집·이용에 동의합니다.',
+                ),
+                const SizedBox(height: AppSizes.space),
+                _buildCheckTile(
+                  title: '민감정보(정신건강 관련 설문·일기) 처리 동의',
+                  summary: _sensitiveSummary,
+                  value: agreedSensitive,
+                  onChanged: (v) => setState(() => agreedSensitive = (v ?? false)),
+                  onViewPressed: () {
+                    _showDialog('민감정보 처리 동의', _sensitiveConsent);
+                  },
+                  agreeLabel: '민감정보 처리에 동의합니다.',
+                ),
+
+                const SizedBox(height: AppSizes.space * 2),
+
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: allAgreed
+                        ? () {
+                            Navigator.pushNamed(context, '/signup', arguments: {
+                              'email': email,
+                              'password': password,
+                            });
+                          }
+                        : null,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.indigo,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppSizes.borderRadius),
+                      ),
+                      minimumSize: const Size.fromHeight(54),
+                    ),
+                    child: const Text('다음으로'),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
