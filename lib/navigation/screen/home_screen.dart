@@ -7,10 +7,10 @@ import 'package:provider/provider.dart';
 
 import 'package:gad_app_team/widgets/aspect_viewport.dart';
 import 'package:gad_app_team/navigation/navigation.dart';
-import 'package:gad_app_team/data/daycounter.dart';
+import 'package:gad_app_team/models/daycounter.dart';
 import 'package:gad_app_team/data/user_provider.dart';
 
-import 'package:gad_app_team/features/menu/diary/diary_directory_screen.dart';
+import 'package:gad_app_team/features/contents/diary_directory_screen.dart';
 import 'myinfo_screen.dart';
 
 /// 홈 화면
@@ -44,17 +44,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.grey100,
-      body: AspectViewport(
+    return AspectViewport(
         aspect: 9 / 16,
         background: AppColors.grey100,
-        child: _buildBody(),
-      ),
+        child: Scaffold(
+      backgroundColor: AppColors.grey100,
+      body: _buildBody(),
       bottomNavigationBar: CustomNavigationBar(
         selectedIndex: _selectedIndex,
         onDestinationSelected: _onDestinationSelected,
       ),
+    )
     );
   }
 
@@ -177,7 +177,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 SizedBox(height: 8),
                 Text(
-                  '전화: 010-xxxx-xxxx',
+                  '대표 연락처: 010-6480-7296 (김민주)',
                   textAlign: TextAlign.left,
                   style: TextStyle(fontSize: 14),
                 ),

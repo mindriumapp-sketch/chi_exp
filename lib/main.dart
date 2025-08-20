@@ -6,7 +6,7 @@ import 'package:provider/provider.dart';
 // Firebase 설정 및 사용자 프로바이더
 import 'package:gad_app_team/firebase_options.dart';
 import 'package:gad_app_team/data/user_provider.dart';
-import 'package:gad_app_team/data/daycounter.dart';
+import 'package:gad_app_team/models/daycounter.dart';
 
 // 알림
 import 'package:gad_app_team/data/notification_provider.dart';

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'daycounter.dart';
+import '../models/daycounter.dart';
 
 class UserProvider extends ChangeNotifier {
   final _auth = FirebaseAuth.instance;

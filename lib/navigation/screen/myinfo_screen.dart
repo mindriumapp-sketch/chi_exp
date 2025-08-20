@@ -10,7 +10,6 @@ import 'package:provider/provider.dart';
 import 'package:gad_app_team/widgets/input_text_field.dart';
 import 'package:gad_app_team/widgets/card_container.dart';
 import 'package:gad_app_team/widgets/passwod_field.dart';
-import 'package:gad_app_team/widgets/aspect_viewport.dart';
 
 class MyInfoScreen extends StatefulWidget {
   const MyInfoScreen({super.key});
@@ -97,10 +96,7 @@ class _MyInfoScreenState extends State<MyInfoScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.grey100,
-      body: AspectViewport(
-        aspect: 9 / 16,
-        background: Colors.grey.shade100,
-        child:SafeArea(
+      body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.symmetric(horizontal:AppSizes.padding),
           children: [
@@ -112,7 +108,7 @@ class _MyInfoScreenState extends State<MyInfoScreen> {
             ),
           ],
         ),
-      ),)
+      ),
     );
   }
 
@@ -126,7 +122,7 @@ class _MyInfoScreenState extends State<MyInfoScreen> {
       title: '계정 정보',
       child: Column(
         children: [
-          InputTextField(label: '이름(닉네임)', controller: _nameController),
+          InputTextField(label: '닉네임', controller: _nameController),
           const SizedBox(height: AppSizes.space),
           InputTextField(label: '이메일', controller: _emailController, enabled: false),
           const SizedBox(height: AppSizes.space),

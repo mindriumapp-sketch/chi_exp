@@ -845,76 +845,76 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
           _markAbandoned('system_back');
         }
       },
-      child: Scaffold(
-        backgroundColor: Colors.grey.shade100,
-        appBar: CustomAppBar(title: '일기 쓰기'),
-        body: AspectViewport(
+      child: AspectViewport(
         aspect: 9 / 16,
         background: Colors.grey.shade100,
-        child:MediaQuery(
-          data: MediaQuery.of(context).copyWith(textScaler: const TextScaler.linear(1)),
-          child: SafeArea(
-            child: KeyboardListener(
-              focusNode: _rawFocus,
-              onKeyEvent: (KeyEvent event) {
-                if (event is KeyDownEvent) {
-                  _keyPresses++;
-                  final isBackspace = event.logicalKey == LogicalKeyboardKey.backspace;
-                  if (isBackspace) {
-                    _logEvent('key', {
-                      'logicalKey': event.logicalKey.keyLabel,
-                      'backspace': true,
-                    });
-                  }
-                }
-              },
-              child: Listener(
-                behavior: HitTestBehavior.translucent,
-                onPointerDown: (e) {
-                  final now = DateTime.now();
-                  if (_lastTouchTs == null ||
-                      now.difference(_lastTouchTs!).inMilliseconds > _touchThrottleMs) {
-                    _touches++;
-                    _logEvent('touch', {'x': e.position.dx, 'y': e.position.dy});
-                    _lastTouchTs = now;
-                  } else {
-                    _touches++;
+        child: Scaffold(
+          backgroundColor: Colors.grey.shade100,
+          appBar: CustomAppBar(title: '일기 쓰기'),
+          body: MediaQuery(
+            data: MediaQuery.of(context).copyWith(textScaler: const TextScaler.linear(1)),
+            child: SafeArea(
+              child: KeyboardListener(
+                focusNode: _rawFocus,
+                onKeyEvent: (KeyEvent event) {
+                  if (event is KeyDownEvent) {
+                    _keyPresses++;
+                    final isBackspace = event.logicalKey == LogicalKeyboardKey.backspace;
+                    if (isBackspace) {
+                      _logEvent('key', {
+                        'logicalKey': event.logicalKey.keyLabel,
+                        'backspace': true,
+                      });
+                    }
                   }
                 },
-                child: _buildMainContent(),
+                child: Listener(
+                  behavior: HitTestBehavior.translucent,
+                  onPointerDown: (e) {
+                    final now = DateTime.now();
+                    if (_lastTouchTs == null ||
+                        now.difference(_lastTouchTs!).inMilliseconds > _touchThrottleMs) {
+                      _touches++;
+                      _logEvent('touch', {'x': e.position.dx, 'y': e.position.dy});
+                      _lastTouchTs = now;
+                    } else {
+                      _touches++;
+                    }
+                  },
+                  child: _buildMainContent(),
+                ),
               ),
             ),
           ),
-        ),),
-        bottomNavigationBar: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-          child: NavigationButtons(
-            leftLabel: '이전',
-            rightLabel: _currentStep < 2 ? '다음' : (_currentCSubStep < 2 ? '다음' : '저장'),
-            onBack: () {
-              if (_currentStep == 0) {
-                _markAbandoned('nav_back');
-                Navigator.pop(context);
-              } else if (_currentStep == 2 && _currentCSubStep > 0) {
-                setState(() => _currentCSubStep--);
-              } else {
-                _previousStep();
-              }
-            },
-            onNext: () async {
-              if (_currentStep < 2) {
-                _nextStep();
-              } else {
-                if (_currentCSubStep < 2) {
+          bottomNavigationBar: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+            child: NavigationButtons(
+              leftLabel: '이전',
+              rightLabel: _currentStep < 2 ? '다음' : (_currentCSubStep < 2 ? '다음' : '저장'),
+              onBack: () {
+                if (_currentStep == 0) {
+                  _markAbandoned('nav_back');
+                  Navigator.pop(context);
+                } else if (_currentStep == 2 && _currentCSubStep > 0) {
+                  setState(() => _currentCSubStep--);
+                } else {
+                  _previousStep();
+                }
+              },
+              onNext: () async {
+                if (_currentStep < 2) {
                   _nextStep();
                 } else {
-                  await _saveAbcAndExit();
+                  if (_currentCSubStep < 2) {
+                    _nextStep();
+                  } else {
+                    await _saveAbcAndExit();
+                  }
                 }
-              }
-            },
+              },
+            ),
           ),
-        ),
-      ),
+        ),)
     );
   }
 

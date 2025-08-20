@@ -97,10 +97,7 @@ class _SignupScreenState extends State<SignupScreen> {
         _showError('이미 등록된 이메일입니다. 로그인 화면으로 이동합니다.');
         await Future.delayed(const Duration(seconds: 2));
         if (!mounted) return;
-        Navigator.pushReplacementNamed(context, '/login', arguments: {
-          'email': email,
-          'password': password,
-        });
+        Navigator.pushReplacementNamed(context, '/login');
       } else if (e.code == 'network-request-failed') {
         _showError('네트워크 오류가 발생했습니다. 인터넷 연결을 확인해주세요.');
       } else {
@@ -126,16 +123,16 @@ class _SignupScreenState extends State<SignupScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return AspectViewport(
+        aspect: 9 / 16,
+        background: AppColors.grey100,
+        child: Scaffold(
       backgroundColor: AppColors.grey100,
       appBar: CustomAppBar(
         title: '회원가입',
         showHome: false,
       ),
-      body: AspectViewport(
-        aspect: 9 / 16,
-        background: AppColors.grey100,
-        child: SingleChildScrollView(
+      body: SingleChildScrollView(
           padding: const EdgeInsets.all(AppSizes.padding),
           child: Column(
             children: [
@@ -144,12 +141,6 @@ class _SignupScreenState extends State<SignupScreen> {
                 fillColor: Colors.white,
                 label: '이메일',
                 keyboardType: TextInputType.emailAddress,
-              ),
-              const SizedBox(height: AppSizes.space),
-              InputTextField(
-                controller: nameController,
-                label: '이름(닉네임)',
-                fillColor: Colors.white,
               ),
               const SizedBox(height: AppSizes.space),
               PasswordTextField(
@@ -173,7 +164,21 @@ class _SignupScreenState extends State<SignupScreen> {
                   });
                 },
               ),
+              Divider(height: 32),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text('* 본인 이름을 제외한 닉네임을 입력해주세요.'),
+              ),
+              InputTextField(
+                controller: nameController,
+                label: '닉네임',
+                fillColor: Colors.white,
+              ),
               const SizedBox(height: AppSizes.space),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text('* 지급 받은 마인드리움 코드를 입력해주세요.'),
+              ),
               InputTextField(
                 controller: codeController,
                 label: '마인드리움 코드',

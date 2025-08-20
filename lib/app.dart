@@ -2,14 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:gad_app_team/common/constants.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:gad_app_team/features/2nd_treatment/abc_guide_screen.dart';
+import 'package:gad_app_team/features/contents/after_survey.dart';
+import 'package:gad_app_team/features/contents/before_survey.dart';
 
 //notification
-import 'package:gad_app_team/features/menu/diary/diary_directory_screen.dart';
+import 'package:gad_app_team/features/contents/diary_directory_screen.dart';
 
 // Feature imports
 import 'package:gad_app_team/features/auth/login_screen.dart';
 import 'package:gad_app_team/features/auth/signup_screen.dart';
 import 'package:gad_app_team/features/auth/terms_screen.dart';
+import 'package:gad_app_team/features/contents/thanks_screen.dart';
 import 'package:gad_app_team/features/other/splash_screen.dart';
 
 // Navigation screen imports
@@ -55,6 +58,9 @@ class MyApp extends StatelessWidget {
         '/week2': (context) => const AbcGuideScreen(),
 
         '/diary_directory': (context) => NotificationDirectoryScreen(),
+        '/before_survey': (context) => BeforeSurveyScreen(),
+        '/after_survey': (context) => AfterSurveyScreen(),
+        '/thanks': (context) => ThanksScreen(),
 
       },
     );

@@ -17,12 +17,12 @@ class AbcGuideScreen extends StatefulWidget {
 class _AbcGuideScreenState extends State<AbcGuideScreen> {
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey.shade100,
-      body: AspectViewport(
+    return AspectViewport(
         aspect: 9 / 16,
         background: AppColors.grey100,
-        child: Padding(
+        child: Scaffold(
+      backgroundColor: Colors.grey.shade100,
+      body: Padding(
         padding: const EdgeInsets.all(AppSizes.padding),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

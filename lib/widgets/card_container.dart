@@ -9,6 +9,7 @@ class CardContainer extends StatelessWidget {
   final Widget? trailing; // 제목 오른쪽에 붙일 위젯 (선택)
   final List<BoxShadow>? boxShadow;
   final CrossAxisAlignment crossAxisAlignment; // 정렬 옵션 
+  final EdgeInsetsGeometry? margin;
 
   const CardContainer({
     super.key,
@@ -21,11 +22,13 @@ class CardContainer extends StatelessWidget {
     this.trailing,
     this.boxShadow,
     this.crossAxisAlignment = CrossAxisAlignment.center,
+    this.margin,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
+      margin: margin,
       padding: const EdgeInsets.all(AppSizes.padding),
       decoration: BoxDecoration(
         color: AppColors.white,
@@ -37,10 +40,12 @@ class CardContainer extends StatelessWidget {
         children: [
           Row(
             children: [
-              Text(
-                title,
-                style: titleStyle,
-              ),
+              Expanded(
+                child: Text(
+                  title,
+                  style: titleStyle,
+                ),
+              )
             ],
           ),
           const SizedBox(height: AppSizes.space),

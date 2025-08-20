@@ -1,32 +1,48 @@
 import 'package:flutter/material.dart';
 import 'package:gad_app_team/common/constants.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 /// 앱 실행 시 처음 보여지는 스플래시 화면
 class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key});
 
-  Future<bool> checkLoginStatus() async {
+  Future<String> _resolveNextRoute() async {
     final prefs = await SharedPreferences.getInstance();
-    final result = prefs.getBool('isLoggedIn');
-    return result == true;
+    final isLoggedIn = prefs.getBool('isLoggedIn') == true;
+    if (!isLoggedIn) return '/login';
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return '/login';
+
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('chi_users')
+          .doc(user.uid)
+          .get();
+      final data = doc.data();
+      if (data != null && data['after_survey_completed'] == true) {
+        return '/thanks';
+      }
+    } catch (_) {
+      // 실패 시 홈으로 포워드 (네트워크/권한 오류 등)
+    }
+    return '/home';
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<bool>(
-      future: checkLoginStatus(),
+    return FutureBuilder<String>(
+      future: _resolveNextRoute(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return _buildSplashUI();
         }
 
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          final isLoggedIn = snapshot.data ?? false;
-          Navigator.pushReplacementNamed(
-            context,
-            isLoggedIn ? '/home' : '/login',
-          );
+          final route = snapshot.data ?? '/login';
+          Navigator.pushReplacementNamed(context, route);
         });
 
         return _buildSplashUI();

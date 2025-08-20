@@ -167,13 +167,13 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
           _markAbandoned('system_back');
         }
       },
-      child: Scaffold(
-        backgroundColor: Colors.grey.shade100,
-        appBar: CustomAppBar(title: '일기 쓰기'),
-        body: AspectViewport(
+      child: AspectViewport(
         aspect: 9 / 16,
         background: Colors.grey.shade100,
-        child:MediaQuery(
+        child:Scaffold(
+        backgroundColor: Colors.grey.shade100,
+        appBar: CustomAppBar(title: '일기 쓰기'),
+        body: MediaQuery(
           data: MediaQuery.of(context).copyWith(textScaler: const TextScaler.linear(1)),
           child: SafeArea(
             child: KeyboardListener(
@@ -207,7 +207,7 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
               ),
             ),
           ),
-        ),),
+        ),
         bottomNavigationBar: Padding(
           padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
           child: NavigationButtons(
@@ -236,7 +236,7 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
             },
           ),
         ),
-      ),
+      ),)
     );
   }
 

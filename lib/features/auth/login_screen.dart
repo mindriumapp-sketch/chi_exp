@@ -5,6 +5,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:gad_app_team/widgets/aspect_viewport.dart';
 
+import 'package:provider/provider.dart';
+import 'package:gad_app_team/models/daycounter.dart';
+
 import 'package:gad_app_team/widgets/input_text_field.dart';
 import 'package:gad_app_team/widgets/primary_action_button.dart';
 
@@ -87,10 +90,7 @@ class _LoginScreenState extends State<LoginScreen> {
     // Firestore 문서가 없으면 약관/회원가입 플로우로 유도 (앱 흐름에 맞게 조정)
     if (!userDoc.exists) {
       if (!mounted) return;
-      Navigator.pushNamed(context, '/terms', arguments: {
-        'email': email,
-        'password': password,
-      });
+      Navigator.pushNamed(context, '/terms');
       return;
     }
 
@@ -107,28 +107,47 @@ class _LoginScreenState extends State<LoginScreen> {
 
     // 4) 라우팅 단계: 라우트 미등록/오타 등 대비
     try {
-      Navigator.pushReplacementNamed(
-        context,
-        '/home',
-        arguments: {
-          'uid': user.uid,
-          'email': user.email,
-          'userData': userDoc.data(),
-        },
-      );
+      final data = userDoc.data();
+      final bool beforeCompleted = (data?['before_survey_completed'] == true);
+
+      // createdAt 우선순위: Firestore(createdAt / created_at) → Auth metadata → now
+      DateTime createdAt;
+      final createdAtTs = data?['createdAt'];
+      if (createdAtTs is Timestamp) {
+        createdAt = createdAtTs.toDate();
+      } else {
+        createdAt = user.metadata.creationTime ?? DateTime.now();
+      }
+
+      // Provider가 있으면 사용일수 계산용 createdAt 주입 (없어도 무시)
+      try {
+        Provider.of<UserDayCounter>(context, listen: false).setCreatedAt(createdAt);
+      } catch (_) {}
+
+      if (beforeCompleted) {
+        final int days = DateTime.now().difference(createdAt).inDays + 1;
+        if (days >= 10) {
+          if (data != null && data['after_survey_completed'] == true) {
+            Navigator.pushNamedAndRemoveUntil(context, '/thanks', (_) => false);
+          } else {
+            Navigator.pushNamed(context, '/after_survey');
+          }
+        } else  {
+          Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
+        }
+      } else {
+        Navigator.pushNamed(context, '/before_survey');
+      }
     } catch (e, st) {
       debugPrint('[LOGIN][Routing] $e\n$st');
-      _showError('화면 전환 실패: /home 라우트를 확인해주세요.');
+      _showError('화면 전환 실패: 라우트를 확인해주세요.');
     }
   }
 
   void _handleLoginError(String code, String email, String password) {
     switch (code) {
       case 'user-not-found':
-        Navigator.pushNamed(context, '/terms', arguments: {
-          'email': email,
-          'password': password,
-        });
+        Navigator.pushNamed(context, '/terms');
         break;
       case 'wrong-password':
         _showError('비밀번호가 잘못되었습니다.');
@@ -151,23 +170,17 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _goToSignup() {
-    final email = emailController.text.trim();
-    final password = passwordController.text.trim();
-
-    Navigator.pushNamed(context, '/terms', arguments: {
-      'email': email,
-      'password': password,
-    });
+    Navigator.pushNamed(context, '/terms');
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.grey100,
-      body: AspectViewport(
+    return AspectViewport(
         aspect: 9 / 16,
         background: AppColors.grey100,
-        child: SafeArea(
+        child: Scaffold(
+      backgroundColor: AppColors.grey100,
+      body: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(AppSizes.padding),
             child: Column(

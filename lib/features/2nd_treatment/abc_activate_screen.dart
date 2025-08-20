@@ -14,12 +14,12 @@ class AbcActivateScreen extends StatefulWidget {
 class _AbcActivateScreenState extends State<AbcActivateScreen> {
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: CustomAppBar(title: '일기 쓰기 (튜토리얼)'),
-      body: AspectViewport(
+    return AspectViewport(
         aspect: 9 / 16,
         background: Colors.grey.shade100,
-        child: Stack(
+        child:Scaffold(
+      appBar: CustomAppBar(title: '일기 쓰기 (튜토리얼)'),
+      body: Stack(
         children: [
           Positioned.fill(
             child: Image.asset(

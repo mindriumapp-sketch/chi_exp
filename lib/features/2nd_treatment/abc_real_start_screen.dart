@@ -11,12 +11,12 @@ class AbcRealStartScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: AspectViewport(
+    return AspectViewport(
         aspect: 9 / 16,
         background: Colors.grey.shade100,
-        child:SafeArea(
+        child:Scaffold(
+      backgroundColor: Colors.white,
+      body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
           child: Column(

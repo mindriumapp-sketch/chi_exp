@@ -15,13 +15,13 @@ class Week2Screen extends StatefulWidget {
 class _Week2ScreenState extends State<Week2Screen> {
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return AspectViewport(
+        aspect: 9 / 16,
+        background: AppColors.grey100,
+        child: Scaffold(
       backgroundColor: Colors.grey.shade100,
       appBar: CustomAppBar(title: '일기 쓰기 (튜토리얼)'),
-      body: AspectViewport(
-        aspect: 9 / 16,
-        background: Colors.grey.shade100,
-        child:Padding(
+      body: Padding(
         padding: const EdgeInsets.all(AppSizes.padding),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
