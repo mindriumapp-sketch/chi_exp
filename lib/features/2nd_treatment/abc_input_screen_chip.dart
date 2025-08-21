@@ -453,108 +453,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
     }
   }
 
-  void _addCustomSymptom() {
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-            backgroundColor: AppColors.indigo50,
-            insetPadding: EdgeInsets.zero,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: _viewportWrap(
-              horizontal: 20,
-              vertical: 24,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    'C-1. 어떤 신체 증상이 나타났나요?',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.indigo,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 18),
-                  // Combine input box and first suffix on one line, then break
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // White input box
-                          Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.indigo.shade100),
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 8,
-                            ),
-                            child: TextField(
-                              controller: _customAKeywordController,
-                              decoration: const InputDecoration(
-                                hintText: '예: 가슴 두근거림',
-                                border: InputBorder.none,
-                                isDense: true,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        '(이)라는 신체증상이 나타났습니다.',
-                        style: TextStyle(color: Colors.black, fontSize: 16),
-                      ),
-                  const SizedBox(height: 24),
-                  FilledButton(
-                    onPressed: () {
-                      final value = _customSymptomController.text.trim();
-                      if (value.isNotEmpty) {
-                        // 중복 체크
-                        if (_isDuplicateChip('C-physical', value)) {
-                          _showDuplicateAlert(context);
-                          return;
-                        }
-                        setState(() {
-                          _physicalChips.insert(
-                            _physicalChips.length - 1,
-                            GridItem(icon: Icons.circle, label: value),
-                          );
-                          // 현재 세션에 추가된 칩으로 추적
-                          _addToCurrentSession('C-physical', value);
-                        });
-                        _customSymptomController.clear();
-                        Navigator.pop(context);
-                      }
-                    },
-                    style: FilledButton.styleFrom(
-                      backgroundColor: Colors.indigo,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      textStyle: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    child: const Text('추가'),
-                  ),
-                ],
-              ),
-            ),
-          ),
-    );
-  }
-
   void _addAKeyword() {
     showDialog(
       context: context,
@@ -572,7 +470,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'A. 불안감을 느꼈을 때 어떤 상황이었나요?',
+                    'A. 오늘 있었던 기억에 남는 일은 무엇인가요?',
                     style: TextStyle(
                       fontSize: 16,
                       color: Colors.indigo,
@@ -611,7 +509,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                       ),
                       const SizedBox(height: 4),
                       const Text(
-                        '(이)라는 상황이었습니다.',
+                        '(이)라는 일이 있었습니다.',
                         style: TextStyle(color: Colors.black, fontSize: 16),
                       ),
                   if (_tutorialError != null)
@@ -702,7 +600,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'B. 그 상황에서 어떤 생각이 들었나요?',
+                    'B. 그 상황에서 어떤 생각이 떠올랐나요?',
                     style: TextStyle(
                       fontSize: 16,
                       color: Colors.indigo,
@@ -741,7 +639,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                       ),
                       const SizedBox(height: 4),
                       const Text(
-                        '(이)라는 생각이 들었습니다.',
+                        '(이)라는 생각이 떠올랐습니다.',
                         style: TextStyle(color: Colors.black, fontSize: 16),
                       ),
                   if (_tutorialError != null)
@@ -814,6 +712,108 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
     );
   }
 
+  void _addCustomSymptom() {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+            backgroundColor: AppColors.indigo50,
+            insetPadding: EdgeInsets.zero,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: _viewportWrap(
+              horizontal: 20,
+              vertical: 24,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'C-1. 그때 몸에서 어떤 변화가 있었나요?',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.indigo,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 18),
+                  // Combine input box and first suffix on one line, then break
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // White input box
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.indigo.shade100),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 8,
+                            ),
+                            child: TextField(
+                              controller: _customAKeywordController,
+                              decoration: const InputDecoration(
+                                hintText: '예: 가슴 두근거림',
+                                border: InputBorder.none,
+                                isDense: true,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        '(이)라는 변화가 있었습니다.',
+                        style: TextStyle(color: Colors.black, fontSize: 16),
+                      ),
+                  const SizedBox(height: 24),
+                  FilledButton(
+                    onPressed: () {
+                      final value = _customSymptomController.text.trim();
+                      if (value.isNotEmpty) {
+                        // 중복 체크
+                        if (_isDuplicateChip('C-physical', value)) {
+                          _showDuplicateAlert(context);
+                          return;
+                        }
+                        setState(() {
+                          _physicalChips.insert(
+                            _physicalChips.length - 1,
+                            GridItem(icon: Icons.circle, label: value),
+                          );
+                          // 현재 세션에 추가된 칩으로 추적
+                          _addToCurrentSession('C-physical', value);
+                        });
+                        _customSymptomController.clear();
+                        Navigator.pop(context);
+                      }
+                    },
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.indigo,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      textStyle: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    child: const Text('추가'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+    );
+  }
+
   void _addEmotion() {
     showDialog(
       context: context,
@@ -832,7 +832,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'C-2. 어떤 감정이 들었나요?',
+                    'C-2. 그 순간 어떤 감정을 느꼈나요?',
                     style: TextStyle(
                       fontSize: 16,
                       color: Colors.indigo,
@@ -871,7 +871,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                       ),
                       const SizedBox(height: 4),
                       const Text(
-                        '(이)라는 감정이 들었습니다.',
+                        '(이)라는 감정을 느꼈습니다.',
                         style: TextStyle(color: Colors.black, fontSize: 16),
                       ),
                   const SizedBox(height: 24),
@@ -1005,10 +1005,11 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
 
   Widget _buildMainContent() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const SizedBox(height: 24),
           // 2. A-B-C 인디케이터 (가로선 포함)
           _buildAbcStepIndicator(),
           const SizedBox(height: 24),
@@ -1183,7 +1184,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'A. 불안감을 느꼈을 때 어떤 상황이었나요?',
+          'A. 오늘 있었던 기억에 남는 일은 무엇인가요?',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
         const SizedBox(height: 8),
@@ -1298,7 +1299,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'B. 그 상황에서 어떤 생각이 들었나요?',
+          'B. 그 상황에서 어떤 생각이 떠올랐나요?',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
         const SizedBox(height: 8),
@@ -1401,7 +1402,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'C-1. 어떤 신체 증상이 나타났나요?',
+              'C-1. 그때 몸에서 어떤 변화가 있었나요?',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
             const SizedBox(height: 8),
@@ -1435,7 +1436,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'C-2. 어떤 감정이 들었나요?',
+              'C-2. 그 순간 어떤 감정을 느꼈나요?',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
             const SizedBox(height: 8),
@@ -1447,7 +1448,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'C-3. 어떤 행동을 했나요?',
+              'C-3. 그래서 어떤 행동을 했나요?',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
             const SizedBox(height: 8),
@@ -1718,7 +1719,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'C-3. 어떤 행동을 했나요?',
+                    'C-3. 그래서 어떤 행동을 했나요?',
                     style: TextStyle(
                       fontSize: 16,
                       color: Colors.indigo,

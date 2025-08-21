@@ -246,6 +246,7 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const SizedBox(height: 24),
           // 2. A-B-C 인디케이터 (가로선 포함)
           _buildAbcStepIndicator(),
           const SizedBox(height: 24),
@@ -366,13 +367,13 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'A. 불안감을 느꼈을 때 어떤 상황이었나요?',
+          'A. 오늘 있었던 기억에 남는 일은 무엇인가요?',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 16),
         TextField(
           controller: _aTextController,
-          maxLines: 5,
+          maxLines: 12,
           decoration: InputDecoration(
             hintText: '예: 자전거 타기',
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -389,13 +390,13 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'B. 그 상황에서 어떤 생각이 들었나요?',
+          'B. 그 상황에서 어떤 생각이 떠올랐나요?',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 16),
         TextField(
           controller: _bTextController,
-          maxLines: 5,
+          maxLines: 12,
           decoration: InputDecoration(
             hintText: '예: 넘어질까봐 두려움',
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -414,13 +415,13 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'C-1. 어떤 신체 증상이 나타났나요?',
+              'C-1. 그때 몸에서 어떤 변화가 있었나요?',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 16),
             TextField(
               controller: _c1TextController,
-              maxLines: 4,
+              maxLines: 12,
               decoration: InputDecoration(
                 hintText: '예: 가슴 두근거림',
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -435,13 +436,13 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'C-2. 어떤 감정이 들었나요?',
+              'C-2. 그 순간 어떤 감정을 느꼈나요?',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 16),
             TextField(
               controller: _c2TextController,
-              maxLines: 4,
+              maxLines: 12,
               decoration: InputDecoration(
                 hintText: '예: 두려움',
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -456,13 +457,13 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'C-3. 어떤 행동을 했나요?',
+              'C-3. 그래서 어떤 행동을 했나요?',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 16),
             TextField(
               controller: _c3TextController,
-              maxLines: 4,
+              maxLines: 12,
               decoration: InputDecoration(
                 hintText: '예: 자전거 끌고가기',
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),

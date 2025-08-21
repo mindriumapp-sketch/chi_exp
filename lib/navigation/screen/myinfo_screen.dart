@@ -62,7 +62,7 @@ class _MyInfoScreenState extends State<MyInfoScreen> {
       await user.reauthenticateWithCredential(cred);
 
       await user.updateDisplayName(newName);
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({ 'name': newName });
+      await FirebaseFirestore.instance.collection('chi_users').doc(user.uid).update({ 'name': newName });
       if (!mounted) return;
       Provider.of<UserProvider>(context, listen: false).updateUserName(newName);
 
