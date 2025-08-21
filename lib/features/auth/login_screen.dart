@@ -170,7 +170,13 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _goToSignup() {
-    Navigator.pushNamed(context, '/terms');
+    final email = emailController.text.trim();
+    final password = passwordController.text.trim();
+
+    Navigator.pushNamed(context, '/terms', arguments: {
+      'email': email,
+      'password': password,
+    });
   }
 
   @override

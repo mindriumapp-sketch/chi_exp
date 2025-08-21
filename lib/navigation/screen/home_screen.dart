@@ -99,7 +99,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 SizedBox(height: 8),
                 Text(
-                  '※ 본 연구는 14일간 진행되며, 원활한 연구를 위해 매일 1회 이상 일기 작성을 부탁드립니다.\n',
+                  '※ 본 연구는 10일간 진행되며, 원활한 연구를 위해 매일 1회 이상 일기 작성을 부탁드립니다.\n',
                   textAlign: TextAlign.left,
                   style: TextStyle(
                     fontSize: 14,
@@ -131,7 +131,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   style: TextStyle(fontSize: 14),
                 ),
                 Text(
-                  " - 하단 탭 '내 정보': 계정 정보 확인, 이름(닉네임)/비밀번호 변경\n",
+                  " - 하단 탭 '내 정보': 계정 정보 확인, 닉네임/비밀번호 변경\n",
                   textAlign: TextAlign.left,
                   style: TextStyle(fontSize: 14),
                 ),
