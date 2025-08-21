@@ -324,6 +324,35 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
     }
   }
 
+  /// Wrap dialog content to match the same viewport width calculation as AspectViewport (aspect = 9/16).
+  Widget _viewportWrap({
+    required Widget child,
+    double horizontal = 24,
+    double vertical = 28,
+  }) {
+    return SafeArea(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          const double aspect = 9 / 16;
+          final double usableH = constraints.maxHeight;
+          double targetW = constraints.maxWidth;
+          double targetH = targetW / aspect;
+          if (targetH > usableH) {
+            targetH = usableH;
+            targetW = targetH * aspect;
+          }
+          return SizedBox(
+            width: targetW,
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: horizontal, vertical: vertical),
+              child: child,
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -424,26 +453,26 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
     }
   }
 
-  /// ============ 커스텀 다이얼로그 복구 =============
   void _addCustomSymptom() {
     showDialog(
       context: context,
-      builder:
-          (_) => Dialog(
+      builder: (context) => Dialog(
             backgroundColor: AppColors.indigo50,
+            insetPadding: EdgeInsets.zero,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
             ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+            child: _viewportWrap(
+              horizontal: 20,
+              vertical: 24,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text(
+                  Text(
                     'C-1. 어떤 신체 증상이 나타났나요?',
                     style: TextStyle(
-                      fontSize: 15,
+                      fontSize: 16,
                       color: Colors.indigo,
                       fontWeight: FontWeight.w500,
                     ),
@@ -452,24 +481,37 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 18),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.indigo.shade100),
-                    ),
-                    child: TextField(
-                      controller: _customSymptomController,
-                      decoration: const InputDecoration(
-                        hintText: '신체 증상 입력',
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 12,
-                        ),
+                  // Combine input box and first suffix on one line, then break
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // White input box
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.indigo.shade100),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 8,
+                            ),
+                            child: TextField(
+                              controller: _customAKeywordController,
+                              decoration: const InputDecoration(
+                                hintText: '예: 가슴 두근거림',
+                                border: InputBorder.none,
+                                isDense: true,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        '(이)라는 신체증상이 나타났습니다.',
+                        style: TextStyle(color: Colors.black, fontSize: 16),
+                      ),
                   const SizedBox(height: 24),
                   FilledButton(
                     onPressed: () {
@@ -512,19 +554,19 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
           ),
     );
   }
-  // ================================================
 
   void _addAKeyword() {
     showDialog(
       context: context,
-      builder:
-          (_) => Dialog(
+      builder: (context) => Dialog(
             backgroundColor: AppColors.indigo50,
+            insetPadding: EdgeInsets.zero,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
             ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+            child: _viewportWrap(
+              horizontal: 20,
+              vertical: 24,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -532,7 +574,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                   Text(
                     'A. 불안감을 느꼈을 때 어떤 상황이었나요?',
                     style: TextStyle(
-                      fontSize: 15,
+                      fontSize: 16,
                       color: Colors.indigo,
                       fontWeight: FontWeight.w500,
                     ),
@@ -541,24 +583,37 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 18),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.indigo.shade100),
-                    ),
-                    child: TextField(
-                      controller: _customAKeywordController,
-                      decoration: const InputDecoration(
-                        hintText: '예: 자전거를 타려고 함',
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 12,
-                        ),
+                  // Combine input box and first suffix on one line, then break
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // White input box
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.indigo.shade100),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 8,
+                            ),
+                            child: TextField(
+                              controller: _customAKeywordController,
+                              decoration: const InputDecoration(
+                                hintText: '예: 자전거 타기',
+                                border: InputBorder.none,
+                                isDense: true,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        '(이)라는 상황이었습니다.',
+                        style: TextStyle(color: Colors.black, fontSize: 16),
+                      ),
                   if (_tutorialError != null)
                     Padding(
                       padding: const EdgeInsets.only(top: 8.0),
@@ -635,11 +690,13 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
       builder:
           (_) => Dialog(
             backgroundColor: AppColors.indigo50,
+            insetPadding: EdgeInsets.zero,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
             ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+            child: _viewportWrap(
+              horizontal: 24,
+              vertical: 28,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -647,7 +704,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                   Text(
                     'B. 그 상황에서 어떤 생각이 들었나요?',
                     style: TextStyle(
-                      fontSize: 15,
+                      fontSize: 16,
                       color: Colors.indigo,
                       fontWeight: FontWeight.w500,
                     ),
@@ -656,24 +713,37 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 18),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.indigo.shade100),
-                    ),
-                    child: TextField(
-                      controller: _customBKeywordController,
-                      decoration: const InputDecoration(
-                        hintText: '예: 넘어질까봐 두려움',
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 12,
-                        ),
+                  // Combine input box and first suffix on one line, then break
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // White input box
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.indigo.shade100),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 8,
+                            ),
+                            child: TextField(
+                              controller: _customAKeywordController,
+                              decoration: const InputDecoration(
+                                hintText: '예: 넘어질까봐 두려움',
+                                border: InputBorder.none,
+                                isDense: true,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        '(이)라는 생각이 들었습니다.',
+                        style: TextStyle(color: Colors.black, fontSize: 16),
+                      ),
                   if (_tutorialError != null)
                     Padding(
                       padding: const EdgeInsets.only(top: 8.0),
@@ -750,11 +820,13 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
       builder:
           (_) => Dialog(
             backgroundColor: AppColors.indigo50,
+            insetPadding: EdgeInsets.zero,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
             ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+            child: _viewportWrap(
+              horizontal: 24,
+              vertical: 28,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -762,7 +834,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                   Text(
                     'C-2. 어떤 감정이 들었나요?',
                     style: TextStyle(
-                      fontSize: 15,
+                      fontSize: 16,
                       color: Colors.indigo,
                       fontWeight: FontWeight.w500,
                     ),
@@ -771,24 +843,37 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 18),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.indigo.shade100),
-                    ),
-                    child: TextField(
-                      controller: _customEmotionController,
-                      decoration: const InputDecoration(
-                        hintText: '감정 입력',
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 12,
-                        ),
+                  // Combine input box and first suffix on one line, then break
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // White input box
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.indigo.shade100),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 8,
+                            ),
+                            child: TextField(
+                              controller: _customAKeywordController,
+                              decoration: const InputDecoration(
+                                hintText: '예: 두려움',
+                                border: InputBorder.none,
+                                isDense: true,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        '(이)라는 감정이 들었습니다.',
+                        style: TextStyle(color: Colors.black, fontSize: 16),
+                      ),
                   const SizedBox(height: 24),
                   FilledButton(
                     onPressed: () {
@@ -1621,19 +1706,21 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
       builder:
           (_) => Dialog(
             backgroundColor: AppColors.indigo50,
+            insetPadding: EdgeInsets.zero,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
             ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+            child: _viewportWrap(
+              horizontal: 24,
+              vertical: 28,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text(
+                  Text(
                     'C-3. 어떤 행동을 했나요?',
                     style: TextStyle(
-                      fontSize: 15,
+                      fontSize: 16,
                       color: Colors.indigo,
                       fontWeight: FontWeight.w500,
                     ),
@@ -1642,25 +1729,37 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 18),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.indigo.shade100),
-                    ),
-                    child: TextField(
-                      controller: _addCGridController,
-                      decoration: const InputDecoration(
-                        hintText: '행동 입력',
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 12,
-                        ),
+                  // Combine input box and first suffix on one line, then break
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // White input box
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.indigo.shade100),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 8,
+                            ),
+                            child: TextField(
+                              controller: _customAKeywordController,
+                              decoration: const InputDecoration(
+                                hintText: '예: 자전거 끌고가기',
+                                border: InputBorder.none,
+                                isDense: true,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      autofocus: true,
-                    ),
-                  ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        '(이)라는 행동을 했습니다.',
+                        style: TextStyle(color: Colors.black, fontSize: 16),
+                      ),
                   if (_tutorialError != null)
                     Padding(
                       padding: const EdgeInsets.only(top: 8.0),

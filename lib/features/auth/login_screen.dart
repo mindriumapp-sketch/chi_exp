@@ -155,6 +155,9 @@ class _LoginScreenState extends State<LoginScreen> {
       case 'invalid-email':
         _showError('유효하지 않은 이메일 형식입니다.');
         break;
+      case 'invalid-credential':
+        _showError('잘못된 이메일 혹은 비밀번호 입니다. 다시 확인해주세요.');
+        break;
       case 'user-disabled':
         _showError('해당 계정은 비활성화되었습니다.');
         break;
@@ -173,7 +176,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final email = emailController.text.trim();
     final password = passwordController.text.trim();
 
-    Navigator.pushNamed(context, '/terms', arguments: {
+      Navigator.pushNamed(context, '/terms', arguments: {
       'email': email,
       'password': password,
     });

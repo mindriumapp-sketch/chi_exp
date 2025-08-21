@@ -374,7 +374,7 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
           controller: _aTextController,
           maxLines: 5,
           decoration: InputDecoration(
-            hintText: '예: 발표 전 사람들 앞에 서 있었어요',
+            hintText: '예: 자전거 타기',
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             filled: true,
             fillColor: Colors.white,
@@ -397,7 +397,7 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
           controller: _bTextController,
           maxLines: 5,
           decoration: InputDecoration(
-            hintText: '예: 모두가 나를 비웃을 거야',
+            hintText: '예: 넘어질까봐 두려움',
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             filled: true,
             fillColor: Colors.white,
@@ -422,7 +422,7 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
               controller: _c1TextController,
               maxLines: 4,
               decoration: InputDecoration(
-                hintText: '예: 두근거림, 손떨림, 땀 등',
+                hintText: '예: 가슴 두근거림',
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 filled: true,
                 fillColor: Colors.white,
@@ -443,7 +443,7 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
               controller: _c2TextController,
               maxLines: 4,
               decoration: InputDecoration(
-                hintText: '예: 불안, 두려움, 당황스러움 등',
+                hintText: '예: 두려움',
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 filled: true,
                 fillColor: Colors.white,
@@ -464,7 +464,7 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
               controller: _c3TextController,
               maxLines: 4,
               decoration: InputDecoration(
-                hintText: '예: 회피, 대화 피함, 자리 바꿈 등',
+                hintText: '예: 자전거 끌고가기',
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 filled: true,
                 fillColor: Colors.white,
