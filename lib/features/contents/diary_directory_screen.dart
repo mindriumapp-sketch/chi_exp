@@ -4,6 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:gad_app_team/common/constants.dart';
 import 'package:gad_app_team/widgets/card_container.dart';
 import 'package:intl/intl.dart';
+import 'package:gad_app_team/features/2nd_treatment/abc_input_screen_chip.dart';
+import 'package:gad_app_team/features/2nd_treatment/abc_input_screen_text.dart';
 
 /// Firestore의 `abc_models` 문서를 화면용 모델로 매핑
 class AbcModel {
@@ -14,6 +16,8 @@ class AbcModel {
   final String cEmotion;
   final String cBehavior;
   final DateTime? completedAt;
+  final DateTime? startedAt;
+  final DateTime? updatedAt;
 
   AbcModel({
     required this.id,
@@ -23,6 +27,8 @@ class AbcModel {
     required this.cEmotion,
     required this.cBehavior,
     required this.completedAt,
+    required this.startedAt,
+    required this.updatedAt,
   });
 
   factory AbcModel.fromDoc(DocumentSnapshot doc) {
@@ -34,6 +40,20 @@ class AbcModel {
     } else if (rawCompletedAt is String) {
       completedAt = DateTime.tryParse(rawCompletedAt);
     }
+    DateTime? startedAt;
+    final rawStartedAt = (doc.data() as Map<String, dynamic>)['startedAt'];
+    if (rawStartedAt is Timestamp) {
+      startedAt = rawStartedAt.toDate();
+    } else if (rawStartedAt is String) {
+      startedAt = DateTime.tryParse(rawStartedAt);
+    }
+    DateTime? updatedAt;
+    final rawUpdatedAt = (doc.data() as Map<String, dynamic>)['updatedAt'];
+    if (rawUpdatedAt is Timestamp) {
+      updatedAt = rawUpdatedAt.toDate();
+    } else if (rawUpdatedAt is String) {
+      updatedAt = DateTime.tryParse(rawUpdatedAt);
+    }
     return AbcModel(
       id: doc.id,
       activatingEvent: data['activatingEvent'] as String? ?? '-',
@@ -42,6 +62,8 @@ class AbcModel {
       cEmotion: data['c2_emotion'] as String? ?? '-',
       cBehavior: data['c3_behavior'] as String? ?? '-',
       completedAt: completedAt,
+      startedAt: startedAt,
+      updatedAt: updatedAt,
     );
   }
 }
@@ -62,7 +84,6 @@ class AbcStreamList extends StatelessWidget {
           .collection('chi_users')
           .doc(uid)
           .collection('abc_models')
-          .orderBy('completedAt', descending: true)
           .snapshots(),
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
@@ -73,6 +94,18 @@ class AbcStreamList extends StatelessWidget {
           return const Center(child: Text('저장된 일기가 없습니다'));
         }
         final items = docs.map(AbcModel.fromDoc).toList();
+        int cmp(DateTime? a, DateTime? b) {
+          final da = a ?? DateTime.fromMillisecondsSinceEpoch(0);
+          final db = b ?? DateTime.fromMillisecondsSinceEpoch(0);
+          return db.compareTo(da); // desc
+        }
+        items.sort((x, y) {
+          final c = cmp(x.completedAt, y.completedAt);
+          if (c != 0) return c;
+          final u = cmp(x.updatedAt, y.updatedAt);
+          if (u != 0) return u;
+          return cmp(x.startedAt, y.startedAt);
+        });
         final total = docs.length;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.end,
@@ -116,22 +149,207 @@ class _AbcCard extends StatefulWidget {
 
 class _AbcCardState extends State<_AbcCard> {
 
+  Future<void> _onEdit(AbcModel m) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    final fs = FirebaseFirestore.instance;
+    final userDoc = fs.collection('chi_users').doc(uid);
+    final docRef = userDoc.collection('abc_models').doc(m.id);
+    final backupRef = userDoc.collection('abc_backup').doc(m.id);
+    final startedAt = DateTime.now();
+
+    // 1) 기존 일기 백업 (삭제는 하지 않음)
+    try {
+      final snap = await docRef.get();
+      final Map<String, dynamic>? data = snap.data();
+      final backup = <String, dynamic>{
+        ...?data,
+        'backupAt': FieldValue.serverTimestamp(),
+      };
+      await backupRef.set(backup, SetOptions(merge: true));
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('오류가 발생했습니다: $e')),
+        );
+      }
+    }
+
+    // 2) chi_users 코드 조회
+    String? code;
+    try {
+      final userSnap = await userDoc.get();
+      code = userSnap.data()?['code']?.toString();
+    } catch (_) {}
+
+    if (!mounted) return;
+
+    // 3) 코드에 따라 편집 화면 이동
+    if (code == '1234') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => AbcInputTextScreen(
+            abcId: m.id,
+            startedAt: startedAt,
+            isEditMode: true,
+          ),
+        ),
+      );
+    } else if (code == '7890') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => AbcInputScreen(
+            abcId: m.id,
+            startedAt: startedAt,
+            isEditMode: true,
+          ),
+        ),
+      );
+    } else {}
+  }
+
+  Future<void> _onDelete(AbcModel m) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('삭제 확인'),
+        content: const Text('선택한 일기를 삭제할까요? 이 작업은 되돌릴 수 없습니다.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('삭제', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (ok != true) return;
+
+    final fs = FirebaseFirestore.instance;
+    final userDoc = fs.collection('chi_users').doc(uid);
+    final docRef = userDoc.collection('abc_models').doc(m.id);
+    final backupRef = userDoc.collection('abc_backup').doc(m.id);
+
+    try {
+      final snap = await docRef.get();
+      final Map<String, dynamic>? data = snap.data();
+
+      // 백업 데이터: 기존 필드 + 메타 정보
+      final copy = <String, dynamic>{
+        ...?data,
+        'deletedAt': FieldValue.serverTimestamp(),
+      };
+
+      final batch = fs.batch();
+      batch.set(backupRef, copy, SetOptions(merge: true));
+      batch.delete(docRef);
+      await batch.commit();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('일기를 삭제했습니다.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('삭제 중 오류가 발생했습니다: $e')),
+        );
+      }
+    }
+  }
+
+  Widget _moreMenuButton(AbcModel m) {
+    return PopupMenuButton<String>(
+      tooltip: '옵션',
+      onSelected: (value) {
+        switch (value) {
+          case 'edit':
+            _onEdit(m);
+            break;
+          case 'delete':
+            _onDelete(m);
+            break;
+        }
+      },
+      elevation: 1,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      color: Colors.grey.shade50,
+      itemBuilder: (context) => [
+        PopupMenuItem(
+          value: 'edit',
+          height: 20,
+          child: Row(
+            children: const [
+              Icon(Icons.edit_outlined, size: 16, color: Colors.indigo),
+              SizedBox(width: 8),
+              Text('수정하기'),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          enabled: false,
+          height: 12,
+          child: const Divider(),
+        ),
+        PopupMenuItem(
+          value: 'delete',
+          height: 20,
+          child: Row(
+            children: const [
+              Icon(Icons.delete_outline, size: 16, color: Colors.red),
+              SizedBox(width: 8),
+              Text('삭제하기', style: TextStyle(color: Colors.red)),
+            ],
+          ),
+        ),
+      ],
+      // Custom-styled trigger
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(0,12,8,0),
+        child: const Icon(Icons.more_vert, size: 20, color: Colors.black),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final title = widget.model.completedAt != null
         ? DateFormat('yyyy-MM-dd HH:mm').format(widget.model.completedAt!)
         : '작성 날짜 없음';
 
-    return CardContainer(
-      title: title,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Divider(height: 1, thickness: 1),
-          const SizedBox(height: 12),
-          _buildExpandedBody(),
-        ],
-      )
+    return Stack(
+      children: [
+        CardContainer(
+          title: title,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Divider(height: 1, thickness: 1),
+              const SizedBox(height: 12),
+              _buildExpandedBody(),
+            ],
+          ),
+        ),
+        // 우측 상단 오버레이 (날짜 타이틀 영역 근처)
+        Positioned(
+          top: 4,
+          right: 8,
+          child: _moreMenuButton(widget.model),
+        ),
+      ],
     );
   }
 
@@ -141,9 +359,9 @@ class _AbcCardState extends State<_AbcCard> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _kv('A(상황)', m.activatingEvent),
-        const SizedBox(height: 8),
+        const SizedBox(height: 16),
         _kv('B(생각)', m.belief),
-        const SizedBox(height: 8),
+        const SizedBox(height: 16),
         _kvC('C(결과)', m.cPhysical, m.cEmotion, m.cBehavior),
       ],
     );
@@ -178,7 +396,7 @@ class _AbcCardState extends State<_AbcCard> {
           label,
           textAlign: TextAlign.start,
           softWrap: true,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 4),
         Text('신체 증상', style: TextStyle(fontWeight: FontWeight.bold),),

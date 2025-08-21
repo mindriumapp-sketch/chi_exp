@@ -30,13 +30,14 @@ class AbcInputScreen extends StatefulWidget {
   final Map<String, String>? exampleData;
   final String? abcId;
   final DateTime? startedAt;
+  final bool isEditMode;
 
   const AbcInputScreen({
     super.key,
-    // this.isExampleMode = false,
     this.exampleData,
     this.abcId,
     this.startedAt,
+    this.isEditMode = false,
   });
 
   @override
@@ -45,6 +46,8 @@ class AbcInputScreen extends StatefulWidget {
 
 class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObserver {
   bool _didInit = false;
+
+  bool get _isEditing => widget.isEditMode && (widget.abcId != null && widget.abcId!.isNotEmpty);
 
   CollectionReference<Map<String, dynamic>> _chipsRef(String uid) {
     final userRef = FirebaseFirestore.instance.collection('chi_users').doc(uid);
@@ -324,6 +327,85 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
     }
   }
 
+  // === 편집 모드: 기존 ABC 불러오기 유틸 ===
+  List<String> _splitLabels(dynamic v) {
+    if (v == null) return const [];
+    return v.toString()
+        .split(',')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+  }
+
+  int _ensureChip(List<GridItem> chips, String label) {
+    final idx = chips.indexWhere((c) => c.label == label);
+    if (idx != -1) return idx;
+    final insertIdx = chips.length - 1; // '추가' 칩 앞에 삽입
+    chips.insert(insertIdx, GridItem(icon: Icons.circle, label: label));
+    return insertIdx;
+  }
+
+  Future<void> _loadExistingAbc() async {
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      final abcId = widget.abcId;
+      if (uid == null || abcId == null) return;
+
+      final snap = await FirebaseFirestore.instance
+          .collection('chi_users')
+          .doc(uid)
+          .collection('abc_models')
+          .doc(abcId)
+          .get();
+
+      final data = snap.data();
+      if (data == null) return;
+
+      final ae = _splitLabels(data['activatingEvent']);
+      final bl = _splitLabels(data['belief']);
+      final c1 = _splitLabels(data['c1_physical']);
+      final c2 = _splitLabels(data['c2_emotion']);
+      final c3 = _splitLabels(data['c3_behavior']);
+
+      setState(() {
+
+        // A: 단일 선택
+        if (ae.isNotEmpty) {
+          final idx = _ensureChip(_aGridChips, ae.first);
+          _selectedAGrid
+            ..clear()
+            ..add(idx);
+        }
+        // B: 멀티 선택 가능
+        _selectedBGrid.clear();
+        for (final s in bl) {
+          final idx = _ensureChip(_bGridChips, s);
+          _selectedBGrid.add(idx);
+        }
+        // C1
+        _selectedPhysical.clear();
+        for (final s in c1) {
+          final idx = _ensureChip(_physicalChips, s);
+          _selectedPhysical.add(idx);
+        }
+        // C2
+        _selectedEmotion.clear();
+        for (final s in c2) {
+          final idx = _ensureChip(_emotionChips, s);
+          _selectedEmotion.add(idx);
+        }
+        // C3
+        _selectedBehavior.clear();
+        for (final s in c3) {
+          final idx = _ensureChip(_behaviorChips, s);
+          _selectedBehavior.add(idx);
+        }
+      });
+    } catch (e) {
+      debugPrint('기존 ABC 불러오기 실패: $e');
+    }
+  }
+
   /// Wrap dialog content to match the same viewport width calculation as AspectViewport (aspect = 9/16).
   Widget _viewportWrap({
     required Widget child,
@@ -383,6 +465,10 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
     // if (!widget.isExampleMode) {
       _loadCustomChips();
     // }
+
+    if (_isEditing) {
+      _loadExistingAbc();
+    }
 
     // 튜토리얼 모드 전용 기본 칩 세팅
     // if (widget.isExampleMode) {
@@ -935,7 +1021,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
         background: Colors.grey.shade100,
         child: Scaffold(
           backgroundColor: Colors.grey.shade100,
-          appBar: CustomAppBar(title: '일기 쓰기'),
+          appBar: CustomAppBar(title: _isEditing ? '일기 수정' : '일기 쓰기'),
           body: MediaQuery(
             data: MediaQuery.of(context).copyWith(textScaler: const TextScaler.linear(1)),
             child: SafeArea(
@@ -975,7 +1061,9 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
             padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
             child: NavigationButtons(
               leftLabel: '이전',
-              rightLabel: _currentStep < 2 ? '다음' : (_currentCSubStep < 2 ? '다음' : '저장'),
+              rightLabel: _currentStep < 2
+                  ? '다음'
+                  : (_currentCSubStep < 2 ? '다음' : (_isEditing ? '수정' : '저장')),
               onBack: () {
                 if (_currentStep == 0) {
                   _markAbandoned('nav_back');
@@ -1961,46 +2049,63 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
       // 사용자 문서 머지 생성 (존재 보장)
       await firestore.collection('chi_users').doc(userId).set({}, SetOptions(merge: true));
 
-      // ABC 모델 데이터 구성
+      // ABC 모델 데이터 구성 (기본 필드)
       final c1 = _selectedPhysical.map((i) => _physicalChips[i].label).join(', ');
       final c2 = _selectedEmotion.map((i) => _emotionChips[i].label).join(', ');
       final c3 = _selectedBehavior.map((i) => _behaviorChips[i].label).join(', ');
       final activatingEvent = _selectedAGrid.map((i) => _aGridChips[i].label).join(', ');
       final belief          = _selectedBGrid.map((i) => _bGridChips[i].label).join(', ');
 
-      final data = {
+      final baseData = {
         'activatingEvent': activatingEvent,
         'belief'         : belief,
         'c1_physical'    : c1,
         'c2_emotion'     : c2,
         'c3_behavior'    : c3,
-        'startedAt': widget.startedAt,
-        'completedAt'      : FieldValue.serverTimestamp(),
       };
 
       if (!mounted) return;
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('저장'),
-          content: const Text('작성한 일기를 저장하시겠습니까?'),
+          title: Text(_isEditing ? '수정' : '저장'),
+          content: Text(_isEditing ? '수정 내용을 저장하시겠습니까?' : '작성한 일기를 저장하시겠습니까?'),
           actions: [
             TextButton(
               child: const Text('취소'),
-              onPressed: () {
-                Navigator.pop(context);
-              },
+              onPressed: () => Navigator.pop(context),
             ),
             TextButton(
-              child: const Text('확인'),
+              child: Text(_isEditing ? '수정' : '확인'),
               onPressed: () async {
-                final newModelId = await _nextSequencedDocId(userId, 'abc_models');
-                await firestore
-                    .collection('chi_users')
-                    .doc(userId)
-                    .collection('abc_models')
-                    .doc(newModelId)
-                    .set(data);
+                if (_isEditing) {
+                  // 편집: 기존 문서에 덮어쓰기 (백업은 onEdit에서 수행)
+                  final docRef = firestore
+                      .collection('chi_users')
+                      .doc(userId)
+                      .collection('abc_models')
+                      .doc(widget.abcId!);
+
+                  final payload = {
+                    ...baseData,
+                    'startedAt': widget.startedAt,
+                    'completedAt': FieldValue.serverTimestamp(),
+                  };
+                  await docRef.set(payload, SetOptions(merge: false));
+                } else {
+                  // 신규: 시퀀스 ID로 생성
+                  final newId = await _nextSequencedDocId(userId, 'abc_models');
+                  await firestore
+                      .collection('chi_users')
+                      .doc(userId)
+                      .collection('abc_models')
+                      .doc(newId)
+                      .set({
+                        ...baseData,
+                        'startedAt'  : widget.startedAt,
+                        'completedAt': FieldValue.serverTimestamp(),
+                      });
+                }
 
                 await _saveSelectedChipsToFirestore();
 

@@ -16,13 +16,14 @@ class AbcInputTextScreen extends StatefulWidget {
   final Map<String, String>? exampleData;
   final String? abcId;
   final DateTime? startedAt;
+  final bool isEditMode;
 
   const AbcInputTextScreen({
     super.key,
-    // this.isExampleMode = false,
     this.exampleData,
     this.abcId,
     this.startedAt,
+    this.isEditMode = false,
   });
 
   @override
@@ -31,6 +32,8 @@ class AbcInputTextScreen extends StatefulWidget {
 
 class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBindingObserver {
   bool _didInit = false;
+
+  bool get _isEditing => widget.isEditMode && (widget.abcId != null && widget.abcId!.isNotEmpty);
 
   int _currentStep = 0;
   // Sub-step for C-step questions
@@ -99,6 +102,34 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
     });
   }
 
+  Future<void> _loadExistingAbcText() async {
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      final abcId = widget.abcId;
+      if (uid == null || abcId == null) return;
+
+      final snap = await FirebaseFirestore.instance
+          .collection('chi_users')
+          .doc(uid)
+          .collection('abc_models')
+          .doc(abcId)
+          .get();
+
+      final data = snap.data();
+      if (data == null) return;
+
+      setState(() {
+        _aTextController.text = (data['activatingEvent'] ?? '').toString();
+        _bTextController.text = (data['belief'] ?? '').toString();
+        _c1TextController.text = (data['c1_physical'] ?? '').toString();
+        _c2TextController.text = (data['c2_emotion'] ?? '').toString();
+        _c3TextController.text = (data['c3_behavior'] ?? '').toString();
+      });
+    } catch (e) {
+      debugPrint('기존 ABC 불러오기 실패(Text): $e');
+    }
+  }
+
 
 
   @override
@@ -108,6 +139,9 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
     _stepEnteredAt = DateTime.now();
     _startSession();
     _attachTextWatchers();
+    if (_isEditing) {
+      _loadExistingAbcText();
+    }
   }
 
   @override
@@ -172,7 +206,7 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
         background: Colors.grey.shade100,
         child:Scaffold(
         backgroundColor: Colors.grey.shade100,
-        appBar: CustomAppBar(title: '일기 쓰기'),
+        appBar: CustomAppBar(title: _isEditing ? '일기 수정' : '일기 쓰기'),
         body: MediaQuery(
           data: MediaQuery.of(context).copyWith(textScaler: const TextScaler.linear(1)),
           child: SafeArea(
@@ -212,7 +246,9 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
           padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
           child: NavigationButtons(
             leftLabel: '이전',
-            rightLabel: _currentStep < 2 ? '다음' : (_currentCSubStep < 2 ? '다음' : '저장'),
+            rightLabel: _currentStep < 2
+                ? '다음'
+                : (_currentCSubStep < 2 ? '다음' : (_isEditing ? '수정' : '저장')),
             onBack: () {
               if (_currentStep == 0) {
                 _markAbandoned('nav_back');
@@ -494,47 +530,66 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
       // 사용자 문서 머지 생성 (존재 보장)
       await firestore.collection('chi_users').doc(userId).set({}, SetOptions(merge: true));
 
-      final c1 = _c1TextController.text;
-      final c2 = _c2TextController.text;
-      final c3 = _c3TextController.text;
-      final activatingEvent = _aTextController.text;
-      final belief          = _bTextController.text;
+      final c1 = _c1TextController.text.trim();
+      final c2 = _c2TextController.text.trim();
+      final c3 = _c3TextController.text.trim();
+      final activatingEvent = _aTextController.text.trim();
+      final belief          = _bTextController.text.trim();
 
-      final data = {
+      final baseData = {
         'activatingEvent': activatingEvent,
         'belief'         : belief,
         'c1_physical'    : c1,
         'c2_emotion'     : c2,
         'c3_behavior'    : c3,
-        'startedAt': widget.startedAt,
-        'completedAt'      : FieldValue.serverTimestamp(),
       };
 
       if (!mounted) return;
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('저장'),
-          content: const Text('작성한 일기를 저장하시겠습니까?'),
+          title: Text(_isEditing ? '수정' : '저장'),
+          content: Text(_isEditing ? '수정 내용을 저장하시겠습니까?' : '작성한 일기를 저장하시겠습니까?'),
           actions: [
             TextButton(
               child: const Text('취소'),
-              onPressed: () {
-                Navigator.pop(context);
-              },
+              onPressed: () => Navigator.pop(context),
             ),
             TextButton(
-              child: const Text('확인'),
+              child: Text(_isEditing ? '수정' : '확인'),
               onPressed: () async {
-                final newModelId = await _nextSequencedDocId(userId, 'abc_models');
-                await firestore
-                    .collection('chi_users')
-                    .doc(userId)
-                    .collection('abc_models')
-                    .doc(newModelId)
-                    .set(data);
+                if (_isEditing) {
+                  // 편집: 기존 문서 덮어쓰기 (onEdit에서 백업 완료된 상태)
+                  final docRef = firestore
+                      .collection('chi_users')
+                      .doc(userId)
+                      .collection('abc_models')
+                      .doc(widget.abcId!);
 
-                // 세션 완료 처리: 누적 시간/카운터 반영 및 이벤트 버퍼 플러시
+                  final payload = {
+                    ...baseData,
+                    'startedAt': widget.startedAt,
+                    'completedAt': FieldValue.serverTimestamp(),
+                  };
+
+                  // merge: true 로 기존 필드(예: completedAt) 보존
+                  await docRef.set(payload, SetOptions(merge: true));
+                } else {
+                  // 신규: 시퀀스 ID 생성 후 저장
+                  final newModelId = await _nextSequencedDocId(userId, 'abc_models');
+                  await firestore
+                      .collection('chi_users')
+                      .doc(userId)
+                      .collection('abc_models')
+                      .doc(newModelId)
+                      .set({
+                        ...baseData,
+                        'startedAt'  : widget.startedAt,
+                        'completedAt': FieldValue.serverTimestamp(),
+                      });
+                }
+
+                // 세션 완료 처리
                 final fromKey = _currentStepKey();
                 _bumpStepTimeToNow(fromKey);
                 await _flushEvents();
