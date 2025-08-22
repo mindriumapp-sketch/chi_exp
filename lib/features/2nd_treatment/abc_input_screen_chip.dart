@@ -672,7 +672,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
     showDialog(
       context: context,
       builder:
-          (_) => Dialog(
+          (context) => Dialog(
             backgroundColor: AppColors.indigo50,
             insetPadding: EdgeInsets.zero,
             shape: RoundedRectangleBorder(
@@ -713,7 +713,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                               vertical: 8,
                             ),
                             child: TextField(
-                              controller: _customAKeywordController,
+                              controller: _customBKeywordController,
                               decoration: const InputDecoration(
                                 hintText: '예: 넘어질까봐 두려움',
                                 border: InputBorder.none,
@@ -842,7 +842,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                               vertical: 8,
                             ),
                             child: TextField(
-                              controller: _customAKeywordController,
+                              controller: _customSymptomController,
                               decoration: const InputDecoration(
                                 hintText: '예: 가슴 두근거림',
                                 border: InputBorder.none,
@@ -904,7 +904,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
     showDialog(
       context: context,
       builder:
-          (_) => Dialog(
+          (context) => Dialog(
             backgroundColor: AppColors.indigo50,
             insetPadding: EdgeInsets.zero,
             shape: RoundedRectangleBorder(
@@ -945,7 +945,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                               vertical: 8,
                             ),
                             child: TextField(
-                              controller: _customAKeywordController,
+                              controller: _customEmotionController,
                               decoration: const InputDecoration(
                                 hintText: '예: 두려움',
                                 border: InputBorder.none,
@@ -1793,7 +1793,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
     showDialog(
       context: context,
       builder:
-          (_) => Dialog(
+          (context) => Dialog(
             backgroundColor: AppColors.indigo50,
             insetPadding: EdgeInsets.zero,
             shape: RoundedRectangleBorder(
@@ -1834,7 +1834,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                               vertical: 8,
                             ),
                             child: TextField(
-                              controller: _customAKeywordController,
+                              controller: _addCGridController,
                               decoration: const InputDecoration(
                                 hintText: '예: 자전거 끌고가기',
                                 border: InputBorder.none,
