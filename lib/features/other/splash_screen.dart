@@ -16,19 +16,34 @@ class SplashScreen extends StatelessWidget {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return '/login';
 
+    // 10일 경과 여부 판단: FirebaseAuth의 계정 생성 시간 기준
+    final createdAt = user.metadata.creationTime;
+    if (createdAt == null) {
+      // 생성 시간이 없으면 홈으로 (보수적 처리)
+      return '/home';
+    }
+
+    final now = DateTime.now();
+    final diffDays = now.difference(createdAt).inDays;
+
+    // 10일 이전이면 홈으로
+    if (diffDays < 10) {
+      return '/home';
+    }
+
+    // 10일 이후: after_survey_completed에 따라 분기
     try {
       final doc = await FirebaseFirestore.instance
           .collection('chi_users')
           .doc(user.uid)
           .get();
       final data = doc.data();
-      if (data != null && data['after_survey_completed'] == true) {
-        return '/thanks';
-      }
+      final completed = data != null && data['after_survey_completed'] == true;
+      return completed ? '/thanks' : '/after_survey';
     } catch (_) {
       // 실패 시 홈으로 포워드 (네트워크/권한 오류 등)
+      return '/home';
     }
-    return '/home';
   }
 
   @override
