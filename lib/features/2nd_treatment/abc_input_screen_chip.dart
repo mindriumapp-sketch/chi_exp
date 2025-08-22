@@ -184,10 +184,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
   ];
   final Set<int> _selectedBGrid = {};
 
-  // 튜토리얼 단계 상태 (0: 칩 안내, 1: 상황 입력 안내, 2: 상황 입력 후 다음 안내, 3: 생각 입력 안내, 4: 생각 입력 후 다음 안내, 5: 결과 입력 안내, 6: 결과 입력 후 다음 안내)
-  // int _tutorialStep = 0;
-  String? _tutorialError;
-
   // 사용자 정의 칩 저장 함수
   Future<void> _saveCustomChip(String type, String label) async {
     final user = FirebaseAuth.instance.currentUser;
@@ -223,7 +219,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
               if (!_aGridChips.any((chip) => chip.label == label)) {
                 _aGridChips.insert(
                   _aGridChips.length - 1,
-                  GridItem(icon: Icons.circle, label: label),
+                  GridItem(icon: Icons.circle, label: label, isAdd: true),
                 );
               }
               break;
@@ -231,7 +227,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
               if (!_bGridChips.any((chip) => chip.label == label)) {
                 _bGridChips.insert(
                   _bGridChips.length - 1,
-                  GridItem(icon: Icons.circle, label: label),
+                  GridItem(icon: Icons.circle, label: label, isAdd: true),
                 );
               }
               break;
@@ -239,7 +235,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
               if (!_physicalChips.any((chip) => chip.label == label)) {
                 _physicalChips.insert(
                   _physicalChips.length - 1,
-                  GridItem(icon: Icons.circle, label: label),
+                  GridItem(icon: Icons.circle, label: label, isAdd: true),
                 );
               }
               break;
@@ -247,7 +243,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
               if (!_emotionChips.any((chip) => chip.label == label)) {
                 _emotionChips.insert(
                   _emotionChips.length - 1,
-                  GridItem(icon: Icons.circle, label: label),
+                  GridItem(icon: Icons.circle, label: label, isAdd: true),
                 );
               }
               break;
@@ -255,7 +251,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
               if (!_behaviorChips.any((chip) => chip.label == label)) {
                 _behaviorChips.insert(
                   _behaviorChips.length - 1,
-                  GridItem(icon: Icons.circle, label: label),
+                  GridItem(icon: Icons.circle, label: label, isAdd: true),
                 );
               }
               break;
@@ -455,44 +451,14 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
       GridItem(icon: Icons.visibility_off, label: '시선 피하기'),
       GridItem(icon: Icons.bed, label: '잠 자기'),
       GridItem(icon: Icons.sports_esports, label: '게임'),
-      // 튜토리얼 칩 추가
-      // if (widget.isExampleMode)
-      //   GridItem(icon: Icons.circle, label: '자전거를 타지 않았어요'),
       GridItem(icon: Icons.add, label: '추가', isAdd: true),
     ];
 
-    // 사용자 정의 칩 불러오기
-    // if (!widget.isExampleMode) {
       _loadCustomChips();
-    // }
 
     if (_isEditing) {
       _loadExistingAbc();
     }
-
-    // 튜토리얼 모드 전용 기본 칩 세팅
-    // if (widget.isExampleMode) {
-    //   if (!_aGridChips.any((c) => c.label == '자전거를 타려고 함')) {
-    //     _aGridChips.insert(
-    //       _aGridChips.length - 1,
-    //       GridItem(icon: Icons.circle, label: '자전거를 타려고 함'),
-    //     );
-    //   }
-    //   if (!_bGridChips.any((c) => c.label == '넘어질까봐 두려움')) {
-    //     _bGridChips.insert(
-    //       _bGridChips.length - 1,
-    //       GridItem(icon: Icons.circle, label: '넘어질까봐 두려움'),
-    //     );
-    //   }
-    //   if (!_behaviorChips.any((c) => c.label == '자전거를 타지 않았어요')) {
-    //     _behaviorChips.insert(
-    //       _behaviorChips.length - 1,
-    //       GridItem(icon: Icons.circle, label: '자전거를 타지 않았어요'),
-    //     );
-    //   }
-    //   _tutorialStep = 0;
-    //   _tutorialError = null;
-    // }
   }
 
   @override
@@ -621,37 +587,10 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                         '(이)라는 일이 있었습니다.',
                         style: TextStyle(color: Colors.black, fontSize: 16),
                       ),
-                  if (_tutorialError != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8.0),
-                      child: Text(
-                        _tutorialError!,
-                        style: TextStyle(color: Colors.red, fontSize: 13),
-                      ),
-                    ),
                   const SizedBox(height: 24),
                   FilledButton(
                     onPressed: () {
                       final val = _customAKeywordController.text.trim();
-                      // if (widget.isExampleMode && _tutorialStep == 1) {
-                      //   if (val == '자전거를 타려고 함') {
-                      //     setState(() {
-                      //       _aGridChips.insert(
-                      //         _aGridChips.length - 1,
-                      //         GridItem(icon: Icons.circle, label: val),
-                      //       );
-                      //       _tutorialStep = 2;
-                      //       _tutorialError = null;
-                      //     });
-                      //     _customAKeywordController.clear();
-                      //     Navigator.pop(context);
-                      //   } else {
-                      //     setState(() {
-                      //       _tutorialError = '예시와 똑같이 입력해보세요!';
-                      //     });
-                      //   }
-                      //   return;
-                      // }
                       if (val.isNotEmpty) {
                         // 중복 체크
                         if (_isDuplicateChip('A', val)) {
@@ -661,7 +600,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                         setState(() {
                           _aGridChips.insert(
                             _aGridChips.length - 1,
-                            GridItem(icon: Icons.circle, label: val),
+                            GridItem(icon: Icons.circle, label: val, isAdd: true),
                           );
                           // 현재 세션에 추가된 칩으로 추적
                           _addToCurrentSession('A', val);
@@ -751,37 +690,10 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                         '(이)라는 생각이 떠올랐습니다.',
                         style: TextStyle(color: Colors.black, fontSize: 16),
                       ),
-                  if (_tutorialError != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8.0),
-                      child: Text(
-                        _tutorialError!,
-                        style: TextStyle(color: Colors.red, fontSize: 13),
-                      ),
-                    ),
                   const SizedBox(height: 24),
                   FilledButton(
                     onPressed: () {
                       final val = _customBKeywordController.text.trim();
-                      // if (widget.isExampleMode && _tutorialStep == 3) {
-                      //   if (val == '넘어질까봐 두려움') {
-                      //     setState(() {
-                      //       _bGridChips.insert(
-                      //         _bGridChips.length - 1,
-                      //         GridItem(icon: Icons.circle, label: val),
-                      //       );
-                      //       _tutorialStep = 4;
-                      //       _tutorialError = null;
-                      //     });
-                      //     _customBKeywordController.clear();
-                      //     Navigator.pop(context);
-                      //   } else {
-                      //     setState(() {
-                      //       _tutorialError = '예시와 똑같이 입력해보세요!';
-                      //     });
-                      //   }
-                      //   return;
-                      // }
                       if (val.isNotEmpty) {
                         // 중복 체크
                         if (_isDuplicateChip('B', val)) {
@@ -791,7 +703,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                         setState(() {
                           _bGridChips.insert(
                             _bGridChips.length - 1,
-                            GridItem(icon: Icons.circle, label: val),
+                            GridItem(icon: Icons.circle, label: val, isAdd: true),
                           );
                           // 현재 세션에 추가된 칩으로 추적
                           _addToCurrentSession('B', val);
@@ -893,7 +805,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                         setState(() {
                           _physicalChips.insert(
                             _physicalChips.length - 1,
-                            GridItem(icon: Icons.circle, label: value),
+                            GridItem(icon: Icons.circle, label: value, isAdd: true),
                           );
                           // 현재 세션에 추가된 칩으로 추적
                           _addToCurrentSession('C-physical', value);
@@ -996,7 +908,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                         setState(() {
                           _emotionChips.insert(
                             _emotionChips.length - 1,
-                            GridItem(icon: Icons.circle, label: val),
+                            GridItem(icon: Icons.circle, label: val, isAdd: true),
                           );
                           // 현재 세션에 추가된 칩으로 추적
                           _addToCurrentSession('C-emotion', val);
@@ -1239,60 +1151,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
     }
   }
 
-  // 튜토리얼 안내 인라인 메시지 위젯
-  // Widget _buildTutorialInlineMessage() {
-  //   String text = '';
-  //   switch (_tutorialStep) {
-  //     case 0:
-  //       text = "위에 '자전거를 타려고 함' 칩을 눌러 선택해보세요!";
-  //       break;
-  //     case 1:
-  //       text = "선택한 뒤 아래의 '다음' 버튼을 눌러주세요!";
-  //       break;
-  //     case 2:
-  //       text = "입력한 내용을 선택하고\n'다음' 버튼을 눌러주세요!";
-  //       break;
-  //     case 3:
-  //       text = "위에 '넘어질까봐 두려움' 칩을 눌러 선택해보세요!";
-  //       break;
-  //     case 4:
-  //       text = "선택한 뒤 아래의 '다음' 버튼을 눌러주세요!";
-  //       break;
-  //     case 5:
-  //       text = "위에 '자전거를 타지 않았어요' 칩을 눌러 선택해보세요!";
-  //       break;
-  //     case 6:
-  //       text = "선택한 뒤 '확인' 버튼을 눌러주세요!";
-  //       break;
-  //     default:
-  //       return SizedBox.shrink();
-  //   }
-  //   return Align(
-  //     alignment: Alignment.center,
-  //     child: Padding(
-  //       padding: const EdgeInsets.symmetric(horizontal: 24),
-  //       child: Container(
-  //         margin: const EdgeInsets.only(top: 8),
-  //         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-  //         decoration: BoxDecoration(
-  //           color: Colors.white.withValues(alpha: 0.95),
-  //           borderRadius: BorderRadius.circular(16),
-  //           boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 8)],
-  //         ),
-  //         child: Text(
-  //           text,
-  //           style: const TextStyle(
-  //             color: Colors.indigo,
-  //             fontWeight: FontWeight.bold,
-  //             fontSize: 16,
-  //           ),
-  //           textAlign: TextAlign.center,
-  //         ),
-  //       ),
-  //     ),
-  //   );
-  // }
-
   Widget _buildStepA() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1336,10 +1194,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
             } else {
               final item = _aGridChips[i];
               final isSelected = _selectedAGrid.contains(i);
-              final isCurrentSessionChip = _isCurrentSessionChip(
-                'A',
-                item.label,
-              );
               return FilterChip(
                 avatar: Icon(
                   item.icon,
@@ -1383,27 +1237,14 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                 ),
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                onDeleted:
-                    isCurrentSessionChip
-                        ? () => _deleteCustomChip('A', item.label, i)
-                        : null,
-                deleteIcon:
-                    isCurrentSessionChip
-                        ? const Icon(
-                          Icons.close,
-                          size: 18,
-                          color: Colors.redAccent,
-                        )
-                        : null,
+                onDeleted: item.isAdd ? () => _deleteCustomChip('A', item.label, i) : null,
+                deleteIcon: item.isAdd
+                    ? const Icon(Icons.close, size: 18, color: Colors.redAccent)
+                    : null,
               );
             }
           }),
         ),
-        // 아래에 여백 추가
-        // if (widget.isExampleMode && (_tutorialStep >= 0 && _tutorialStep <= 1))
-        //   SizedBox(height: 120), // 원하는 만큼 조절
-        // if (widget.isExampleMode && (_tutorialStep >= 0 && _tutorialStep <= 1))
-          // _buildTutorialInlineMessage(),
       ],
     );
   }
@@ -1442,10 +1283,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
             } else {
               final item = _bGridChips[i];
               final isSelected = _selectedBGrid.contains(i);
-              final isCurrentSessionChip = _isCurrentSessionChip(
-                'B',
-                item.label,
-              );
               return FilterChip(
                 avatar: Icon(
                   item.icon,
@@ -1485,26 +1322,14 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                 ),
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                onDeleted:
-                    isCurrentSessionChip
-                        ? () => _deleteCustomChip('B', item.label, i)
-                        : null,
-                deleteIcon:
-                    isCurrentSessionChip
-                        ? const Icon(
-                          Icons.close,
-                          size: 18,
-                          color: Colors.redAccent,
-                        )
-                        : null,
+                onDeleted: item.isAdd ? () => _deleteCustomChip('B', item.label, i) : null,
+                deleteIcon: item.isAdd
+                    ? const Icon(Icons.close, size: 18, color: Colors.redAccent)
+                    : null,
               );
             }
           }),
         ),
-        // if (widget.isExampleMode && (_tutorialStep >= 3 && _tutorialStep <= 4))
-          // SizedBox(height: 120),
-        // if (widget.isExampleMode && (_tutorialStep >= 3 && _tutorialStep <= 4))
-          // _buildTutorialInlineMessage(),
       ],
     );
   }
@@ -1520,28 +1345,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
             const SizedBox(height: 8),
-            // if (widget.isExampleMode)
-            //   Container(
-            //     margin: const EdgeInsets.only(bottom: 16),
-            //     padding: const EdgeInsets.symmetric(
-            //       horizontal: 16,
-            //       vertical: 12,
-            //     ),
-            //     decoration: BoxDecoration(
-            //       color: Colors.white.withValues(alpha: 0.95),
-            //       borderRadius: BorderRadius.circular(16),
-            //       boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 8)],
-            //     ),
-            //     child: const Text(
-            //       '현재 C단계는 신체증상, 감정, 행동을 각각 입력하는 단계입니다.\n각 항목을 차례로 진행해 주세요!',
-            //       style: TextStyle(
-            //         color: Colors.indigo,
-            //         fontWeight: FontWeight.bold,
-            //         fontSize: 15,
-            //       ),
-            //       textAlign: TextAlign.center,
-            //     ),
-            //   ),
             _buildCPhysicalChips(),
           ],
         );
@@ -1567,12 +1370,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
             ),
             const SizedBox(height: 8),
             _buildCBehaviorChips(),
-            // if (widget.isExampleMode &&
-            //     (_tutorialStep >= 5 && _tutorialStep <= 6))
-            //   SizedBox(height: 20),
-            // if (widget.isExampleMode &&
-            //     (_tutorialStep >= 5 && _tutorialStep <= 6))
-              // _buildTutorialInlineMessage(),
           ],
         );
       default:
@@ -1601,10 +1398,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
         } else {
           final item = _physicalChips[i];
           final isSelected = _selectedPhysical.contains(i);
-          final isCurrentSessionChip = _isCurrentSessionChip(
-            'C-physical',
-            item.label,
-          );
           return FilterChip(
             avatar: Icon(
               item.icon,
@@ -1644,14 +1437,10 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
             ),
             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            onDeleted:
-                isCurrentSessionChip
-                    ? () => _deleteCustomChip('C-physical', item.label, i)
-                    : null,
-            deleteIcon:
-                isCurrentSessionChip
-                    ? const Icon(Icons.close, size: 18, color: Colors.redAccent)
-                    : null,
+            onDeleted: item.isAdd ? () => _deleteCustomChip('C-physical', item.label, i) : null,
+            deleteIcon: item.isAdd
+                ? const Icon(Icons.close, size: 18, color: Colors.redAccent)
+                : null,
           );
         }
       }),
@@ -1679,10 +1468,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
         } else {
           final item = _emotionChips[i];
           final isSelected = _selectedEmotion.contains(i);
-          final isCurrentSessionChip = _isCurrentSessionChip(
-            'C-emotion',
-            item.label,
-          );
           return FilterChip(
             avatar: Icon(
               item.icon,
@@ -1722,14 +1507,10 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
             ),
             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            onDeleted:
-                isCurrentSessionChip
-                    ? () => _deleteCustomChip('C-emotion', item.label, i)
-                    : null,
-            deleteIcon:
-                isCurrentSessionChip
-                    ? const Icon(Icons.close, size: 18, color: Colors.redAccent)
-                    : null,
+            onDeleted: item.isAdd ? () => _deleteCustomChip('C-emotion', item.label, i) : null,
+            deleteIcon: item.isAdd
+                ? const Icon(Icons.close, size: 18, color: Colors.redAccent)
+                : null,
           );
         }
       }),
@@ -1758,10 +1539,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
         } else {
           final item = _behaviorChips[i];
           final isSelected = _selectedBehavior.contains(i);
-          final isCurrentSessionChip = _isCurrentSessionChip(
-            'C-behavior',
-            item.label,
-          );
           return FilterChip(
             avatar: Icon(
               item.icon,
@@ -1801,14 +1578,10 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
             ),
             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            onDeleted:
-                isCurrentSessionChip
-                    ? () => _deleteCustomChip('C-behavior', item.label, i)
-                    : null,
-            deleteIcon:
-                isCurrentSessionChip
-                    ? const Icon(Icons.close, size: 18, color: Colors.redAccent)
-                    : null,
+            onDeleted: item.isAdd ? () => _deleteCustomChip('C-behavior', item.label, i) : null,
+            deleteIcon: item.isAdd
+                ? const Icon(Icons.close, size: 18, color: Colors.redAccent)
+                : null,
           );
         }
       }),
@@ -1875,37 +1648,10 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                         '(이)라는 행동을 했습니다.',
                         style: TextStyle(color: Colors.black, fontSize: 16),
                       ),
-                  if (_tutorialError != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8.0),
-                      child: Text(
-                        _tutorialError!,
-                        style: TextStyle(color: Colors.red, fontSize: 13),
-                      ),
-                    ),
                   const SizedBox(height: 24),
                   FilledButton(
                     onPressed: () {
                       final value = _addCGridController.text.trim();
-                      // if (widget.isExampleMode && _tutorialStep == 5) {
-                      //   if (value == '자전거를 타지 않았어요') {
-                      //     setState(() {
-                      //       _behaviorChips.insert(
-                      //         _behaviorChips.length - 1,
-                      //         GridItem(icon: Icons.circle, label: value),
-                      //       );
-                      //       _tutorialStep = 6;
-                      //       _tutorialError = null;
-                      //     });
-                      //     _addCGridController.clear();
-                      //     Navigator.pop(context);
-                      //   } else {
-                      //     setState(() {
-                      //       _tutorialError = '예시와 똑같이 입력해보세요!';
-                      //     });
-                      //   }
-                      //   return;
-                      // }
                       if (value.isNotEmpty) {
                         // 중복 체크
                         if (_isDuplicateChip('C-behavior', value)) {
@@ -1915,7 +1661,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                         setState(() {
                           _behaviorChips.insert(
                             _behaviorChips.length - 1,
-                            GridItem(icon: Icons.circle, label: value),
+                            GridItem(icon: Icons.circle, label: value, isAdd: true),
                           );
                           // 현재 세션에 추가된 칩으로 추적
                           _addToCurrentSession('C-behavior', value);
@@ -2021,13 +1767,31 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
     }
   }
 
-  // Firestore에서 커스텀 칩 삭제 함수
+  // Adjusts index-based selections after a chip is removed
+  void _adjustSelectionAfterRemoval(Set<int> selectedSet, int removedIndex) {
+    if (selectedSet.isEmpty) return;
+    final updated = <int>{};
+    for (final idx in selectedSet) {
+      if (idx == removedIndex) {
+        // drop the removed index
+      } else if (idx > removedIndex) {
+        updated.add(idx - 1);
+      } else {
+        updated.add(idx);
+      }
+    }
+    selectedSet
+      ..clear()
+      ..addAll(updated);
+  }
+
+  // Firestore에서 커스텀 칩 삭제 함수 (모든 칩에 대해 삭제 허용, Firestore에서도 삭제 시도)
   Future<void> _deleteCustomChip(String type, String label, int index) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    // 현재 세션에서 추가된 칩인 경우에만 Firestore에서 삭제
-    if (_isCurrentSessionChip(type, label)) {
+    // Firestore: delete any custom chip doc with matching type+label (regardless of session)
+    try {
       final query = await _chipsRef(user.uid)
           .where('type', isEqualTo: type)
           .where('label', isEqualTo: label)
@@ -2035,24 +1799,31 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
       for (var doc in query.docs) {
         await doc.reference.delete();
       }
+    } catch (e) {
+      debugPrint('칩 삭제 중 Firestore 오류: $e');
     }
 
     setState(() {
       switch (type) {
         case 'A':
           _aGridChips.removeAt(index);
+          _adjustSelectionAfterRemoval(_selectedAGrid, index);
           break;
         case 'B':
           _bGridChips.removeAt(index);
+          _adjustSelectionAfterRemoval(_selectedBGrid, index);
           break;
         case 'C-physical':
           _physicalChips.removeAt(index);
+          _adjustSelectionAfterRemoval(_selectedPhysical, index);
           break;
         case 'C-emotion':
           _emotionChips.removeAt(index);
+          _adjustSelectionAfterRemoval(_selectedEmotion, index);
           break;
         case 'C-behavior':
           _behaviorChips.removeAt(index);
+          _adjustSelectionAfterRemoval(_selectedBehavior, index);
           break;
       }
       // 현재 세션 추적에서도 제거
