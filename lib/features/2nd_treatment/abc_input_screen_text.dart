@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:gad_app_team/widgets/custom_appbar.dart';
-// import 'package:provider/provider.dart';
 import '../../common/constants.dart';
 import '../../widgets/navigation_button.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -8,11 +7,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:gad_app_team/widgets/aspect_viewport.dart';
-// import 'package:gad_app_team/data/user_provider.dart';
 
 
 class AbcInputTextScreen extends StatefulWidget {
-  // final bool isExampleMode;
   final Map<String, String>? exampleData;
   final String? abcId;
   final DateTime? startedAt;
@@ -181,6 +178,29 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
     }
   }
 
+  bool _hasTextForCurrentStep() {
+    if (_currentStep == 0) return _aTextController.text.trim().isNotEmpty;
+    if (_currentStep == 1) return _bTextController.text.trim().isNotEmpty;
+    switch (_currentCSubStep) {
+      case 0:
+        return _c1TextController.text.trim().isNotEmpty;
+      case 1:
+        return _c2TextController.text.trim().isNotEmpty;
+      default:
+        return _c3TextController.text.trim().isNotEmpty;
+    }
+  }
+
+  bool _validateStepOrToast() {
+    final ok = _hasTextForCurrentStep();
+    if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('내용을 작성해주세요.')),
+      );
+    }
+    return ok;
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.inactive || state == AppLifecycleState.paused) {
@@ -260,6 +280,9 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
               }
             },
             onNext: () async {
+              // 현재 단계에 내용이 있어야 진행 가능
+              if (!_validateStepOrToast()) return;
+
               if (_currentStep < 2) {
                 _nextStep();
               } else {

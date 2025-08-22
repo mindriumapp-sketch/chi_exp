@@ -177,12 +177,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 SizedBox(height: 8),
                 Text(
-                  ' - 수집·이용 목적: ',
+                  ' - 수집·이용 목적: 사용자 데이터 수집',
                   textAlign: TextAlign.left,
                   style: TextStyle(fontSize: 14),
                 ),
                 Text(
-                  ' - 수집 항목: ',
+                  ' - 수집 항목: 우울 및 불안 척도 결과, 일기 내용, SW 사용 로그',
                   textAlign: TextAlign.left,
                   style: TextStyle(fontSize: 14),
                 ),

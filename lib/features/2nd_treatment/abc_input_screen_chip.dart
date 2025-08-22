@@ -532,6 +532,29 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
     }
   }
 
+  bool _hasSelectionForCurrentStep() {
+    if (_currentStep == 0) return _selectedAGrid.isNotEmpty;
+    if (_currentStep == 1) return _selectedBGrid.isNotEmpty;
+    switch (_currentCSubStep) {
+      case 0:
+        return _selectedPhysical.isNotEmpty;
+      case 1:
+        return _selectedEmotion.isNotEmpty;
+      default:
+        return _selectedBehavior.isNotEmpty;
+    }
+  }
+
+  bool _validateStepOrToast() {
+    final ok = _hasSelectionForCurrentStep();
+    if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('칩을 선택해주세요.')),
+      );
+    }
+    return ok;
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.inactive || state == AppLifecycleState.paused) {
@@ -1075,6 +1098,9 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                 }
               },
               onNext: () async {
+                // 현재 단계에서 최소 1개 선택했는지 검사
+                if (!_validateStepOrToast()) return;
+
                 if (_currentStep < 2) {
                   _nextStep();
                 } else {
