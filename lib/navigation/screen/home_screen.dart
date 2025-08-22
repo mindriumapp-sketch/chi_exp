@@ -12,6 +12,7 @@ import 'package:gad_app_team/data/user_provider.dart';
 
 import 'package:gad_app_team/features/contents/diary_directory_screen.dart';
 import 'myinfo_screen.dart';
+import 'package:gad_app_team/features/llm/llm_test_screen.dart';
 
 /// 홈 화면
 class HomeScreen extends StatefulWidget {
@@ -68,6 +69,8 @@ class _HomeScreenState extends State<HomeScreen> {
         return const NotificationDirectoryScreen();
       case 3:
         return const MyInfoScreen();
+      case 4:
+        return const AbcAnalysisScreen(); // 분석 화면이 추가되면 여기에 해당 위젯을 넣으면 됩니다.
       default:
         return _homePage();
     }
