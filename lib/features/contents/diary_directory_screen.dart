@@ -7,7 +7,6 @@ import 'package:intl/intl.dart';
 import 'package:gad_app_team/features/2nd_treatment/abc_input_screen_chip.dart';
 import 'package:gad_app_team/features/2nd_treatment/abc_input_screen_text.dart';
 
-/// Firestore의 `abc_models` 문서를 화면용 모델로 매핑
 class AbcModel {
   final String id;
   final String activatingEvent;
@@ -97,7 +96,7 @@ class AbcStreamList extends StatelessWidget {
         int cmp(DateTime? a, DateTime? b) {
           final da = a ?? DateTime.fromMillisecondsSinceEpoch(0);
           final db = b ?? DateTime.fromMillisecondsSinceEpoch(0);
-          return db.compareTo(da); // desc
+          return db.compareTo(da);
         }
         items.sort((x, y) {
           final c = cmp(x.completedAt, y.completedAt);
