@@ -2059,6 +2059,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
       _removeFromCurrentSession(type, label);
     });
   }
+  
   Future<void> _saveAbcAndExit() async {
     try {
       final userId = FirebaseAuth.instance.currentUser?.uid;

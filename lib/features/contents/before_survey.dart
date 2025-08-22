@@ -156,7 +156,7 @@ class _Gad7SurveyScreenState extends State<Gad7SurveyScreen> {
       child: Scaffold(
         backgroundColor: AppColors.grey100,
         appBar: CustomAppBar(
-          title: '사전설문 (GAD-7)',
+          title: '사전설문',
           showHome: false,
         ),
         body: SingleChildScrollView(
@@ -294,7 +294,7 @@ class _HabitSurveyScreenState extends State<HabitSurveyScreen> {
       child: Scaffold(
         backgroundColor: AppColors.grey100,
         appBar: CustomAppBar(
-          title: '평소 습관 및 경험',
+          title: '사전설문',
           showHome: false,
         ),
         body: SingleChildScrollView(
