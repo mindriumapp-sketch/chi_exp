@@ -97,7 +97,7 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
       final next = current + 1;
       tx.set(ref, {'seq': next}, SetOptions(merge: true));
       final padded = next.toString().padLeft(6, '0');
-      return '${uid}_${collection}_$padded';
+      return '${collection}_$padded';
     });
   }
 

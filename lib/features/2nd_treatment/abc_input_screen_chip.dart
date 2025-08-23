@@ -71,7 +71,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
       final next = current + 1;
       tx.set(ref, {'seq': next}, SetOptions(merge: true));
       final padded = next.toString().padLeft(6, '0');
-      return '${uid}_${collection}_$padded';
+      return '${collection}_$padded';
     });
   }
   int _currentStep = 0;
