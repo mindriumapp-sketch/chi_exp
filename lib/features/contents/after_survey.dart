@@ -448,8 +448,8 @@ class _DeepOpinionSurveyScreenState extends State<DeepOpinionSurveyScreen> {
 
       await userRef.collection('after_survey').add({
         'createdAt': FieldValue.serverTimestamp(),
-        'phq9_answers': widget.phq9,
-        'gad7_answers': widget.gad7,
+        'after_phq9_answers': widget.phq9,
+        'after_gad7_answers': widget.gad7,
         'llm_overall_satisfaction': widget.llmOverall,
         'llm_accuracy_reflection': widget.llmAccuracy,
         'cognitive_load_answers': widget.cognitive,

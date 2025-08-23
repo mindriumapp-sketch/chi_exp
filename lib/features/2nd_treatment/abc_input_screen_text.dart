@@ -55,6 +55,9 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
   final FocusNode _rawFocus = FocusNode();
   final Map<TextEditingController, String> _prevText = {};
   final Map<TextEditingController, Timer> _debouncers = {};
+  final Map<TextEditingController, int> _lastLoggedLen = {};
+  final Map<TextEditingController, String> _lastLoggedText = {};
+  bool _suspendTextLogging = false;
 
   // Heartbeat & event buffer
   Timer? _heartbeatTimer;
@@ -87,7 +90,6 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
   }
 
   Future<String> _nextSequencedDocId(String uid, String collection) async {
-    // Returns IDs like "abc_models_000001" / "abc_sessions_000001"
     return FirebaseFirestore.instance.runTransaction<String>((tx) async {
       final ref = _counterRef(uid, collection);
       final snap = await tx.get(ref);
@@ -95,7 +97,7 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
       final next = current + 1;
       tx.set(ref, {'seq': next}, SetOptions(merge: true));
       final padded = next.toString().padLeft(6, '0');
-      return '${collection}_$padded';
+      return '${uid}_${collection}_$padded';
     });
   }
 
@@ -115,6 +117,7 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
       final data = snap.data();
       if (data == null) return;
 
+      _suspendTextLogging = true;
       setState(() {
         _aTextController.text = (data['activatingEvent'] ?? '').toString();
         _bTextController.text = (data['belief'] ?? '').toString();
@@ -122,6 +125,26 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
         _c2TextController.text = (data['c2_emotion'] ?? '').toString();
         _c3TextController.text = (data['c3_behavior'] ?? '').toString();
       });
+      _suspendTextLogging = false;
+
+      // Reset baselines so the next user edit logs correct deltas
+      _prevText[_aTextController] = _aTextController.text;
+      _prevText[_bTextController] = _bTextController.text;
+      _prevText[_c1TextController] = _c1TextController.text;
+      _prevText[_c2TextController] = _c2TextController.text;
+      _prevText[_c3TextController] = _c3TextController.text;
+
+      _lastLoggedLen[_aTextController] = _aTextController.text.length;
+      _lastLoggedLen[_bTextController] = _bTextController.text.length;
+      _lastLoggedLen[_c1TextController] = _c1TextController.text.length;
+      _lastLoggedLen[_c2TextController] = _c2TextController.text.length;
+      _lastLoggedLen[_c3TextController] = _c3TextController.text.length;
+
+      _lastLoggedText[_aTextController] = _aTextController.text;
+      _lastLoggedText[_bTextController] = _bTextController.text;
+      _lastLoggedText[_c1TextController] = _c1TextController.text;
+      _lastLoggedText[_c2TextController] = _c2TextController.text;
+      _lastLoggedText[_c3TextController] = _c3TextController.text;
     } catch (e) {
       debugPrint('기존 ABC 불러오기 실패(Text): $e');
     }
@@ -245,7 +268,7 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
                 }
               },
               child: Listener(
-                behavior: HitTestBehavior.translucent,
+                behavior: HitTestBehavior.deferToChild,
                 onPointerDown: (e) {
                   final now = DateTime.now();
                   if (_lastTouchTs == null ||
@@ -690,7 +713,6 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
         'screen': 'AbcInputScreen_text',
         'experimentCondition': 'Text_input',
         'startedAt': widget.startedAt ?? FieldValue.serverTimestamp(),
-        'createdAt': FieldValue.serverTimestamp(),
       });
       _sessionId = newSessionId;
 
@@ -770,22 +792,50 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
 
   void _attachTextWatchers() {
     void watch(String field, TextEditingController c) {
+      // Initialize baselines for this controller
       _prevText[c] = c.text;
+      _lastLoggedLen[c] = c.text.length;
+      _lastLoggedText[c] = c.text;
       _debouncers[c]?.cancel();
+
       c.addListener(() {
-        final prev = _prevText[c] ?? '';
-        final cur = c.text;
-        final delta = cur.length - prev.length;
-        final deletion = cur.length < prev.length;
-        _prevText[c] = cur;
-        _textChanges++;
+        if (_suspendTextLogging) {
+          // Keep baseline in sync while suppressed to avoid large deltas later
+          _prevText[c] = c.text;
+          return;
+        }
+
+        // Update instantaneous previous text baseline for keystroke-level tracking
+        _prevText[c] = c.text;
+
+        // Debounce to emit a single logical text_change per burst
         _debouncers[c]?.cancel();
         _debouncers[c] = Timer(const Duration(milliseconds: 400), () {
+          final curText = c.text;
+          final curLen = curText.length;
+          final lastLen = _lastLoggedLen[c] ?? curLen;
+          final lastText = _lastLoggedText[c] ?? curText;
+
+          // Guard: ignore focus/composition updates that don't change the string
+          if (curLen == lastLen && curText == lastText) {
+            return;
+          }
+
+          final deltaBatch = curLen - lastLen; // net change since last log
+          final deletionBatch = curLen < lastLen;
+
+          // Update baselines for next burst
+          _lastLoggedLen[c] = curLen;
+          _lastLoggedText[c] = curText;
+
+          // Count only debounced logical changes (not every keystroke)
+          _textChanges++;
+
           _logEvent('text_change', {
             'field': field,
-            'len': cur.length,
-            'delta': delta,
-            'deletion': deletion,
+            'len': curLen,
+            'delta': deltaBatch,
+            'deletion': deletionBatch,
           });
         });
       });

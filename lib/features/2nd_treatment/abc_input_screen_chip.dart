@@ -64,7 +64,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
   }
 
   Future<String> _nextSequencedDocId(String uid, String collection) async {
-    // Returns IDs like "abc_models_000001" / "abc_sessions_000001"
     return FirebaseFirestore.instance.runTransaction<String>((tx) async {
       final ref = _counterRef(uid, collection);
       final snap = await tx.get(ref);
@@ -72,7 +71,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
       final next = current + 1;
       tx.set(ref, {'seq': next}, SetOptions(merge: true));
       final padded = next.toString().padLeft(6, '0');
-      return '${collection}_$padded';
+      return '${uid}_${collection}_$padded';
     });
   }
   int _currentStep = 0;
@@ -98,6 +97,9 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
   final FocusNode _rawFocus = FocusNode();
   final Map<TextEditingController, String> _prevText = {};
   final Map<TextEditingController, Timer> _debouncers = {};
+  final Map<TextEditingController, int> _lastLoggedLen = {};
+  bool _suspendTextLogging = false;
+  final Map<TextEditingController, String> _lastLoggedText = {};
 
   // Heartbeat & event buffer
   Timer? _heartbeatTimer;
@@ -605,7 +607,12 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                           // 현재 세션에 추가된 칩으로 추적
                           _addToCurrentSession('A', val);
                         });
+                        _suspendTextLogging = true;
                         _customAKeywordController.clear();
+                        _prevText[_customAKeywordController] = '';
+                        _lastLoggedLen[_customAKeywordController] = 0;
+                        _lastLoggedText[_customAKeywordController] = '';
+                        _suspendTextLogging = false;
                         Navigator.pop(context);
                       }
                     },
@@ -708,7 +715,12 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                           // 현재 세션에 추가된 칩으로 추적
                           _addToCurrentSession('B', val);
                         });
+                        _suspendTextLogging = true;
                         _customBKeywordController.clear();
+                        _prevText[_customBKeywordController] = '';
+                        _lastLoggedLen[_customBKeywordController] = 0;
+                        _lastLoggedText[_customBKeywordController] = '';
+                        _suspendTextLogging = false;
                         Navigator.pop(context);
                       }
                     },
@@ -810,7 +822,12 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                           // 현재 세션에 추가된 칩으로 추적
                           _addToCurrentSession('C-physical', value);
                         });
+                        _suspendTextLogging = true;
                         _customSymptomController.clear();
+                        _prevText[_customSymptomController] = '';
+                        _lastLoggedLen[_customSymptomController] = 0;
+                        _lastLoggedText[_customSymptomController] = '';
+                        _suspendTextLogging = false;
                         Navigator.pop(context);
                       }
                     },
@@ -913,7 +930,12 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                           // 현재 세션에 추가된 칩으로 추적
                           _addToCurrentSession('C-emotion', val);
                         });
+                        _suspendTextLogging = true;
                         _customEmotionController.clear();
+                        _prevText[_customEmotionController] = '';
+                        _lastLoggedLen[_customEmotionController] = 0;
+                        _lastLoggedText[_customEmotionController] = '';
+                        _suspendTextLogging = false;
                         Navigator.pop(context);
                       }
                     },
@@ -975,7 +997,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                   }
                 },
                 child: Listener(
-                  behavior: HitTestBehavior.translucent,
+                  behavior: HitTestBehavior.deferToChild,
                   onPointerDown: (e) {
                     final now = DateTime.now();
                     if (_lastTouchTs == null ||
@@ -1666,7 +1688,12 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                           // 현재 세션에 추가된 칩으로 추적
                           _addToCurrentSession('C-behavior', value);
                         });
+                        _suspendTextLogging = true;
                         _addCGridController.clear();
+                        _prevText[_addCGridController] = '';
+                        _lastLoggedLen[_addCGridController] = 0;
+                        _lastLoggedText[_addCGridController] = '';
+                        _suspendTextLogging = false;
                         Navigator.pop(context);
                       }
                     },
@@ -1985,7 +2012,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
         'screen': 'AbcInputScreen_chip',
         'experimentCondition': 'Chip_input',
         'startedAt': widget.startedAt ?? FieldValue.serverTimestamp(),
-        'createdAt': FieldValue.serverTimestamp(),
       });
       _sessionId = newSessionId;
 
@@ -2065,23 +2091,71 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
 
   void _attachTextWatchers() {
     void watch(String field, TextEditingController c) {
+      // Initialize baselines for this controller
       _prevText[c] = c.text;
+      _lastLoggedLen[c] = c.text.length;
+      _lastLoggedText[c] = c.text;
       _debouncers[c]?.cancel();
-      c.addListener(() {
-        final prev = _prevText[c] ?? '';
-        final cur = c.text;
-        final delta = cur.length - prev.length;
-        final deletion = cur.length < prev.length;
-        _prevText[c] = cur;
 
-        _textChanges++;
+      c.addListener(() {
+        // Capture old/new BEFORE any early returns
+        final oldText = _prevText[c] ?? '';
+        final newText = c.text;
+
+        if (_suspendTextLogging) {
+          // Keep baseline in sync while suppressed to avoid large deltas later
+          _prevText[c] = newText;
+          return;
+        }
+
+        // --- Approximate key press counting from text delta (works with soft keyboard & in dialogs) ---
+        if (newText != oldText) {
+          final d = newText.length - oldText.length;
+          final presses = d.abs();
+          if (presses > 0) {
+            _keyPresses += presses;
+          }
+          // Fallback backspace logging when Raw/KeyboardListener won't fire (mobile IME, dialog focus)
+          if (d < 0) {
+            _logEvent('key', {
+              'logicalKey': 'Backspace',
+              'backspace': true,
+              'count': -d,
+            });
+          }
+        }
+
+        // Update instantaneous previous text baseline for per-change tracking
+        _prevText[c] = newText;
+
+        // Debounce to emit a single logical text_change per burst
         _debouncers[c]?.cancel();
         _debouncers[c] = Timer(const Duration(milliseconds: 400), () {
+          final curText = c.text;
+          final curLen = curText.length;
+          final lastLen = _lastLoggedLen[c] ?? curLen;
+          final lastText = _lastLoggedText[c] ?? curText;
+
+          // Guard: ignore focus/composition updates that don't change the string
+          if (curLen == lastLen && curText == lastText) {
+            return;
+          }
+
+          final deltaBatch = curLen - lastLen; // net change since last log
+          final deletionBatch = curLen < lastLen;
+
+          // Update baselines for next burst
+          _lastLoggedLen[c] = curLen;
+          _lastLoggedText[c] = curText;
+
+          // Count only debounced logical changes (not every keystroke)
+          _textChanges++;
+
           _logEvent('text_change', {
             'field': field,
-            'len': cur.length,
-            'delta': delta,
-            'deletion': deletion,
+            'len': curLen,
+            'delta': deltaBatch,
+            'deletion': deletionBatch,
           });
         });
       });

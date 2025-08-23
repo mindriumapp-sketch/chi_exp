@@ -263,8 +263,8 @@ class _HabitSurveyScreenState extends State<HabitSurveyScreen> {
 
       await userRef.collection('before_survey').add({
         'createdAt': FieldValue.serverTimestamp(),
-        'phq9_answers': widget.phq9,
-        'gad7_answers': widget.gad7,
+        'before_phq9_answers': widget.phq9,
+        'before_gad7_answers': widget.gad7,
         'habit_device': _options[0][_answers[0]!],
         'habit_typing_skill': int.tryParse(_options[1][_answers[1]!]),
         'habit_journaling_experience': _options[2][_answers[2]!],
