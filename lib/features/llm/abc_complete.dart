@@ -49,7 +49,6 @@ class AbcCompleteScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // ABC 섹션은 컴팩트하게
                       _AbcCompact(
                         activatingEvent: data['activatingEvent'] ?? '',
                         belief: data['belief'] ?? '',
@@ -71,8 +70,8 @@ class AbcCompleteScreen extends StatelessWidget {
               leftLabel: '돌아가기',
               rightLabel: '홈으로',
               onBack: () => Navigator.pop(context),
-              onNext: () =>
-                  Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false),
+              onNext: () => Navigator.pushNamedAndRemoveUntil(
+                  context, '/home', (_) => false),
             ),
           ),
         ),
@@ -81,7 +80,7 @@ class AbcCompleteScreen extends StatelessWidget {
   }
 }
 
-// ---------------- ABC 컴팩트 섹션 ----------------
+// ---------------- ABC Compact ----------------
 class _AbcCompact extends StatelessWidget {
   final String activatingEvent;
   final String belief;
@@ -97,9 +96,12 @@ class _AbcCompact extends StatelessWidget {
     required this.c3Behavior,
   });
 
-  // 콤마로 구분된 칩 문자열을 리스트로 변환
   List<String> _splitChips(String value) {
-    return value.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+    return value
+        .split(',')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
   }
 
   @override
@@ -115,8 +117,7 @@ class _AbcCompact extends StatelessWidget {
           children: [
             const _SectionLabel(text: '오늘의 ABC 일기'),
             const SizedBox(height: 12),
-
-            // A: 상황 (칩 형태, 텍스트 길이에 맞게)
+            // A
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -136,7 +137,8 @@ class _AbcCompact extends StatelessWidget {
                         spacing: 8,
                         runSpacing: 8,
                         children: _splitChips(activatingEvent)
-                            .map((chip) => _autoChipBox(chip, AppColors.indigo))
+                            .map((chip) =>
+                                _autoChipBox(chip, AppColors.indigo))
                             .toList(),
                       ),
                     ],
@@ -145,8 +147,7 @@ class _AbcCompact extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 10),
-
-            // B: 생각 (칩 형태, 텍스트 길이에 맞게)
+            // B
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -175,8 +176,7 @@ class _AbcCompact extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 18),
-
-            // C: 신체/감정/행동을 세로로 나열, 각 칩을 길게(텍스트 길이에 맞게)
+            // C
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -186,10 +186,10 @@ class _AbcCompact extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // 신체
                       Row(
                         children: [
-                          Icon(Icons.favorite, color: Colors.pink.shade400, size: 17),
+                          Icon(Icons.favorite,
+                              color: Colors.pink.shade400, size: 17),
                           const SizedBox(width: 4),
                           Text('신체',
                               style: TextStyle(
@@ -203,14 +203,15 @@ class _AbcCompact extends StatelessWidget {
                         spacing: 8,
                         runSpacing: 8,
                         children: _splitChips(c1Physical)
-                            .map((chip) => _autoChipBox(chip, Colors.pink.shade400))
+                            .map((chip) =>
+                                _autoChipBox(chip, Colors.pink.shade400))
                             .toList(),
                       ),
                       const SizedBox(height: 10),
-                      // 감정
                       Row(
                         children: [
-                          Icon(Icons.emoji_emotions, color: Colors.amber.shade700, size: 17),
+                          Icon(Icons.emoji_emotions,
+                              color: Colors.amber.shade700, size: 17),
                           const SizedBox(width: 4),
                           Text('감정',
                               style: TextStyle(
@@ -224,14 +225,15 @@ class _AbcCompact extends StatelessWidget {
                         spacing: 8,
                         runSpacing: 8,
                         children: _splitChips(c2Emotion)
-                            .map((chip) => _autoChipBox(chip, Colors.amber.shade700))
+                            .map((chip) =>
+                                _autoChipBox(chip, Colors.amber.shade700))
                             .toList(),
                       ),
                       const SizedBox(height: 10),
-                      // 행동
                       Row(
                         children: [
-                          Icon(Icons.directions_run, color: Colors.teal, size: 17),
+                          Icon(Icons.directions_run,
+                              color: Colors.teal, size: 17),
                           const SizedBox(width: 4),
                           Text('행동',
                               style: TextStyle(
@@ -245,7 +247,8 @@ class _AbcCompact extends StatelessWidget {
                         spacing: 8,
                         runSpacing: 8,
                         children: _splitChips(c3Behavior)
-                            .map((chip) => _autoChipBox(chip, Colors.teal))
+                            .map((chip) =>
+                                _autoChipBox(chip, Colors.teal))
                             .toList(),
                       ),
                     ],
@@ -259,14 +262,13 @@ class _AbcCompact extends StatelessWidget {
     );
   }
 
-  // 텍스트 길이에 맞는 칩 박스
   Widget _autoChipBox(String text, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.10),
+        color: color.withValues(alpha: 0.10), // 수정
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.22), width: 1),
+        border: Border.all(color: color.withValues(alpha: 0.22), width: 1), // 수정
       ),
       child: Text(
         text,
@@ -293,7 +295,7 @@ class _AbcCompact extends StatelessWidget {
   }
 }
 
-// ---------------- 리포트 카드 (더보기/접기, 풀폭, 화사한 스타일) ----------------
+// ---------------- Report Card ----------------
 class _ReportCard extends StatefulWidget {
   final String report;
   const _ReportCard({required this.report});
@@ -302,7 +304,8 @@ class _ReportCard extends StatefulWidget {
   State<_ReportCard> createState() => _ReportCardState();
 }
 
-class _ReportCardState extends State<_ReportCard> with TickerProviderStateMixin {
+class _ReportCardState extends State<_ReportCard>
+    with TickerProviderStateMixin {
   bool _expanded = false;
 
   @override
@@ -313,7 +316,7 @@ class _ReportCardState extends State<_ReportCard> with TickerProviderStateMixin 
       duration: const Duration(milliseconds: 220),
       curve: Curves.easeInOut,
       child: Container(
-        width: double.infinity, // 화면 꽉 채움
+        width: double.infinity,
         padding: const EdgeInsets.fromLTRB(20, 20, 20, 14),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
@@ -322,10 +325,10 @@ class _ReportCardState extends State<_ReportCard> with TickerProviderStateMixin 
             end: Alignment.bottomRight,
           ),
           borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: primary.withOpacity(0.2), width: 1),
+          border: Border.all(color: primary.withValues(alpha: 0.2), width: 1), // 수정
           boxShadow: [
             BoxShadow(
-              color: primary.withOpacity(0.12),
+              color: primary.withValues(alpha: 0.12), // 수정
               blurRadius: 20,
               offset: const Offset(0, 10),
             ),
@@ -333,15 +336,14 @@ class _ReportCardState extends State<_ReportCard> with TickerProviderStateMixin 
         ),
         child: Column(
           children: [
-            // 헤더
             Row(
               children: [
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.9),
+                    color: Colors.white.withValues(alpha: 0.9), // 수정
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: primary.withOpacity(0.2)),
+                    border: Border.all(color: primary.withValues(alpha: 0.2)), // 수정
                   ),
                   child: Icon(Icons.auto_awesome, color: primary, size: 22),
                 ),
@@ -362,8 +364,8 @@ class _ReportCardState extends State<_ReportCard> with TickerProviderStateMixin 
                   onPressed: () => setState(() => _expanded = !_expanded),
                   style: TextButton.styleFrom(
                     foregroundColor: primary,
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 8),
                   ),
                   child: Text(
                     _expanded ? '접기' : '더보기',
@@ -373,8 +375,6 @@ class _ReportCardState extends State<_ReportCard> with TickerProviderStateMixin 
               ],
             ),
             const SizedBox(height: 12),
-
-            // 본문 (회색 페이드 제거, 더보기 시 전체 표시)
             AnimatedCrossFade(
               firstChild: Text(
                 widget.report,
@@ -400,8 +400,9 @@ class _ReportCardState extends State<_ReportCard> with TickerProviderStateMixin 
                   fontFamily: 'Pretendard',
                 ),
               ),
-              crossFadeState:
-                  _expanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+              crossFadeState: _expanded
+                  ? CrossFadeState.showSecond
+                  : CrossFadeState.showFirst,
               duration: const Duration(milliseconds: 220),
             ),
             const SizedBox(height: 6),
@@ -430,7 +431,6 @@ class _SectionLabel extends StatelessWidget {
   }
 }
 
-// ---------------- 배경 그라데이션 ----------------
 LinearGradient _bgGradient() {
   return const LinearGradient(
     colors: [Color(0xFFeef2ff), Color(0xFFe0e7ff), Color(0xFFf8fafc)],
