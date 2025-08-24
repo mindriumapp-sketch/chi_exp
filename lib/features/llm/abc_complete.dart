@@ -6,10 +6,10 @@ import 'package:gad_app_team/widgets/aspect_viewport.dart';
 import 'package:gad_app_team/common/constants.dart';
 import 'package:gad_app_team/widgets/primary_action_button.dart';
 
-class AbcCompleteScreen extends StatelessWidget {
+class AbcCompleteScreen extends StatefulWidget {
   final String userId;
   final String abcId;
-  final bool fromAbcInput; // true if routed from abc_input
+  final bool fromAbcInput;
 
   const AbcCompleteScreen({
     super.key,
@@ -17,6 +17,26 @@ class AbcCompleteScreen extends StatelessWidget {
     required this.abcId,
     this.fromAbcInput = false,
   });
+
+  @override
+  State<AbcCompleteScreen> createState() => _AbcCompleteScreenState();
+}
+
+class _AbcCompleteScreenState extends State<AbcCompleteScreen> {
+  bool _loadingTimeout = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // ✅ 8초 타임아웃 설정
+    Future.delayed(const Duration(seconds: 8), () {
+      if (mounted) {
+        setState(() {
+          _loadingTimeout = true;
+        });
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,15 +47,27 @@ class AbcCompleteScreen extends StatelessWidget {
         decoration: BoxDecoration(gradient: _bgGradient()),
         child: Scaffold(
           backgroundColor: Colors.transparent,
-          appBar: const CustomAppBar(title: '감정일기 리포트'),
+          appBar: CustomAppBar(
+                title: '감정일기 리포트',
+                onBack: () {
+                  if (widget.fromAbcInput) {
+                    // 입력 → 완료 흐름에서는 홈으로 이동
+                    Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
+                  } else {
+                    // 목록에서 들어왔을 때는 단순 뒤로가기
+                    Navigator.pop(context);
+                  }
+                },
+              ),
+
           body: SafeArea(
-            child: FutureBuilder<DocumentSnapshot>(
-              future: FirebaseFirestore.instance
+            child: StreamBuilder<DocumentSnapshot>(
+              stream: FirebaseFirestore.instance
                   .collection('chi_users')
-                  .doc(userId)
+                  .doc(widget.userId)
                   .collection('abc_models')
-                  .doc(abcId)
-                  .get(),
+                  .doc(widget.abcId)
+                  .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
@@ -45,13 +77,62 @@ class AbcCompleteScreen extends StatelessWidget {
                 }
 
                 final data = snapshot.data!.data() as Map<String, dynamic>;
+                final report = data['report'];
 
+                // ✅ report 생성중
+                if (report == null) {
+                  if (_loadingTimeout) {
+                    // 5초 넘으면 예시 메시지 보여주기
+                    return const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(20),
+                        child: Text(
+                          "AI가 리포트를 생성하는 데 시간이 오래 걸리고 있습니다.\n\n"
+                          "잠시 후 다시 시도하거나, 홈으로 돌아갔다가 다시 확인해보세요.",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.black54,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+                  return const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 16),
+                        Text(
+                          "AI가 리포트를 생성 중입니다...\n잠시만 기다려주세요.",
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                // ✅ report가 실패 문구일 경우
+                if (report is String && report.toLowerCase().contains("실패")) {
+                  return const Center(
+                    child: Text(
+                      "리포트 생성에 실패했습니다.\n잠시 후 다시 시도해주세요.",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                          color: Colors.red, fontWeight: FontWeight.bold),
+                    ),
+                  );
+                }
+
+                // ✅ 정상적으로 리포트 생성됨
                 return SingleChildScrollView(
                   padding: const EdgeInsets.fromLTRB(18, 18, 18, 100),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (fromAbcInput) ...[
+                      if (widget.fromAbcInput) ...[
                         _AbcCompact(
                           activatingEvent: data['activatingEvent'] ?? '',
                           belief: data['belief'] ?? '',
@@ -62,8 +143,8 @@ class AbcCompleteScreen extends StatelessWidget {
                         const SizedBox(height: 18),
                       ],
                       _ReportCard(
-                        report: data['report'] ?? '리포트가 없습니다.',
-                        alwaysExpanded: !fromAbcInput,
+                        report: report.toString(),
+                        alwaysExpanded: !widget.fromAbcInput,
                       ),
                     ],
                   ),
@@ -71,7 +152,7 @@ class AbcCompleteScreen extends StatelessWidget {
               },
             ),
           ),
-          bottomNavigationBar: fromAbcInput
+          bottomNavigationBar: widget.fromAbcInput
               ? Padding(
                   padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
                   child: SizedBox(
@@ -79,10 +160,11 @@ class AbcCompleteScreen extends StatelessWidget {
                     height: 56,
                     child: PrimaryActionButton(
                       onPressed: () {
-                        Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
+                        Navigator.pushNamedAndRemoveUntil(
+                            context, '/home', (_) => false);
                       },
-                      text:  '홈으로'
-                    )
+                      text: '홈으로',
+                    ),
                   ),
                 )
               : null,
@@ -92,13 +174,14 @@ class AbcCompleteScreen extends StatelessWidget {
   }
 }
 
+
 // ---------------- ABC Compact ----------------
 class _AbcCompact extends StatelessWidget {
-  final String activatingEvent;
-  final String belief;
-  final String c1Physical;
-  final String c2Emotion;
-  final String c3Behavior;
+  final dynamic activatingEvent;
+  final dynamic belief;
+  final dynamic c1Physical;
+  final dynamic c2Emotion;
+  final dynamic c3Behavior;
 
   const _AbcCompact({
     required this.activatingEvent,
@@ -108,12 +191,21 @@ class _AbcCompact extends StatelessWidget {
     required this.c3Behavior,
   });
 
-  List<String> _splitChips(String value) {
-    return value
-        .split(',')
-        .map((e) => e.trim())
-        .where((e) => e.isNotEmpty)
-        .toList();
+  List<String> _splitChips(dynamic value) {
+    if (value == null) return [];
+
+    if (value is String) {
+      return [value.trim()];
+    }
+
+    if (value is List) {
+      return value
+          .map((e) => e.toString().trim())
+          .where((e) => e.isNotEmpty)
+          .toList();
+    }
+
+    return [];
   }
 
   @override
@@ -278,9 +370,9 @@ class _AbcCompact extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10), // 수정
+        color: color.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withValues(alpha: 0.22), width: 1), // 수정
+        border: Border.all(color: color.withValues(alpha: 0.22), width: 1),
       ),
       child: Text(
         text,
@@ -339,10 +431,10 @@ class _ReportCardState extends State<_ReportCard>
             end: Alignment.bottomRight,
           ),
           borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: primary.withValues(alpha: 0.2), width: 1), // 수정
+          border: Border.all(color: primary.withValues(alpha: 0.2), width: 1),
           boxShadow: [
             BoxShadow(
-              color: primary.withValues(alpha: 0.12), // 수정
+              color: primary.withValues(alpha: 0.12),
               blurRadius: 20,
               offset: const Offset(0, 10),
             ),
@@ -355,9 +447,9 @@ class _ReportCardState extends State<_ReportCard>
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.9), // 수정
+                    color: Colors.white.withValues(alpha: 0.9),
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: primary.withValues(alpha: 0.2)), // 수정
+                    border: Border.all(color: primary.withValues(alpha: 0.2)),
                   ),
                   child: Icon(Icons.auto_awesome, color: primary, size: 22),
                 ),

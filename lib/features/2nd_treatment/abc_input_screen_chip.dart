@@ -326,15 +326,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
     }
   }
 
-  // === 편집 모드: 기존 ABC 불러오기 유틸 ===
-  List<String> _splitLabels(dynamic v) {
-    if (v == null) return const [];
-    return v.toString()
-        .split(',')
-        .map((e) => e.trim())
-        .where((e) => e.isNotEmpty)
-        .toList();
-  }
 
   int _ensureChip(List<GridItem> chips, String label) {
     final idx = chips.indexWhere((c) => c.label == label);
@@ -345,65 +336,69 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
   }
 
   Future<void> _loadExistingAbc() async {
-    try {
-      final uid = FirebaseAuth.instance.currentUser?.uid;
-      final abcId = widget.abcId;
-      if (uid == null || abcId == null) return;
+  try {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final abcId = widget.abcId;
+    if (uid == null || abcId == null) return;
 
-      final snap = await FirebaseFirestore.instance
-          .collection('chi_users')
-          .doc(uid)
-          .collection('abc_models')
-          .doc(abcId)
-          .get();
+    final snap = await FirebaseFirestore.instance
+        .collection('chi_users')
+        .doc(uid)
+        .collection('abc_models')
+        .doc(abcId)
+        .get();
 
-      final data = snap.data();
-      if (data == null) return;
+    final data = snap.data();
+    if (data == null) return;
 
-      final ae = _splitLabels(data['activatingEvent']);
-      final bl = _splitLabels(data['belief']);
-      final c1 = _splitLabels(data['c1_physical']);
-      final c2 = _splitLabels(data['c2_emotion']);
-      final c3 = _splitLabels(data['c3_behavior']);
+    // ✅ 리스트 안전하게 변환
+    final ae = List<String>.from(data['activatingEvent'] ?? []);
+    final bl = List<String>.from(data['belief'] ?? []);
+    final c1 = List<String>.from(data['c1_physical'] ?? []);
+    final c2 = List<String>.from(data['c2_emotion'] ?? []);
+    final c3 = List<String>.from(data['c3_behavior'] ?? []);
 
-      setState(() {
+    setState(() {
+      // A: 단일 선택
+      if (ae.isNotEmpty) {
+        final idx = _ensureChip(_aGridChips, ae.first);  // ✅ 첫 값만
+        _selectedAGrid
+          ..clear()
+          ..add(idx);
+      }
 
-        // A: 단일 선택
-        if (ae.isNotEmpty) {
-          final idx = _ensureChip(_aGridChips, ae.first);
-          _selectedAGrid
-            ..clear()
-            ..add(idx);
-        }
-        // B: 멀티 선택 가능
-        _selectedBGrid.clear();
-        for (final s in bl) {
-          final idx = _ensureChip(_bGridChips, s);
-          _selectedBGrid.add(idx);
-        }
-        // C1
-        _selectedPhysical.clear();
-        for (final s in c1) {
-          final idx = _ensureChip(_physicalChips, s);
-          _selectedPhysical.add(idx);
-        }
-        // C2
-        _selectedEmotion.clear();
-        for (final s in c2) {
-          final idx = _ensureChip(_emotionChips, s);
-          _selectedEmotion.add(idx);
-        }
-        // C3
-        _selectedBehavior.clear();
-        for (final s in c3) {
-          final idx = _ensureChip(_behaviorChips, s);
-          _selectedBehavior.add(idx);
-        }
-      });
-    } catch (e) {
-      debugPrint('기존 ABC 불러오기 실패: $e');
-    }
+      // B: 멀티 선택 가능
+      _selectedBGrid.clear();
+      for (final s in bl) {
+        final idx = _ensureChip(_bGridChips, s.toString());
+        _selectedBGrid.add(idx);
+      }
+
+      // C1
+      _selectedPhysical.clear();
+      for (final s in c1) {
+        final idx = _ensureChip(_physicalChips, s.toString());
+        _selectedPhysical.add(idx);
+      }
+
+      // C2
+      _selectedEmotion.clear();
+      for (final s in c2) {
+        final idx = _ensureChip(_emotionChips, s.toString());
+        _selectedEmotion.add(idx);
+      }
+
+      // C3
+      _selectedBehavior.clear();
+      for (final s in c3) {
+        final idx = _ensureChip(_behaviorChips, s.toString());
+        _selectedBehavior.add(idx);
+      }
+    });
+  } catch (e) {
+    debugPrint('기존 ABC 불러오기 실패: $e');
   }
+}
 
   /// Wrap dialog content to match the same viewport width calculation as AspectViewport (aspect = 9/16).
   Widget _viewportWrap({
@@ -1876,11 +1871,12 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
       await firestore.collection('chi_users').doc(userId).set({}, SetOptions(merge: true));
 
       // ABC 모델 데이터 구성 (기본 필드)
-      final c1 = _selectedPhysical.map((i) => _physicalChips[i].label).join(', ');
-      final c2 = _selectedEmotion.map((i) => _emotionChips[i].label).join(', ');
-      final c3 = _selectedBehavior.map((i) => _behaviorChips[i].label).join(', ');
-      final activatingEvent = _selectedAGrid.map((i) => _aGridChips[i].label).join(', ');
-      final belief          = _selectedBGrid.map((i) => _bGridChips[i].label).join(', ');
+      final c1 = _selectedPhysical.map((i) => _physicalChips[i].label).toList();
+      final c2 = _selectedEmotion.map((i) => _emotionChips[i].label).toList();
+      final c3 = _selectedBehavior.map((i) => _behaviorChips[i].label).toList();
+      final activatingEvent = _selectedAGrid.map((i) => _aGridChips[i].label).toList();
+      final belief          = _selectedBGrid.map((i) => _bGridChips[i].label).toList();
+
 
       final baseData = {
         'activatingEvent': activatingEvent,
@@ -1888,6 +1884,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
         'c1_physical'    : c1,
         'c2_emotion'     : c2,
         'c3_behavior'    : c3,
+        
       };
 
       if (!mounted) return;
@@ -1918,7 +1915,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                     'startedAt': widget.startedAt,
                     'completedAt': FieldValue.serverTimestamp(),
                   };
-                  await docRef.set(payload, SetOptions(merge: false));
+                  await docRef.set(payload, SetOptions(merge: true));
                   savedAbcId = widget.abcId!;
                 } else {
                   // 신규: 시퀀스 ID로 생성
@@ -1932,6 +1929,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                         ...baseData,
                         'startedAt'  : widget.startedAt,
                         'completedAt': FieldValue.serverTimestamp(),
+                        'report'     : null,   // ✅ report 필드 추가
                       });
                   savedAbcId = newId;
                 }
