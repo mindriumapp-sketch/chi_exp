@@ -4,16 +4,18 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:gad_app_team/widgets/custom_appbar.dart';
 import 'package:gad_app_team/widgets/aspect_viewport.dart';
 import 'package:gad_app_team/common/constants.dart';
-import 'package:gad_app_team/widgets/navigation_button.dart';
+import 'package:gad_app_team/widgets/primary_action_button.dart';
 
 class AbcCompleteScreen extends StatelessWidget {
   final String userId;
   final String abcId;
+  final bool fromAbcInput; // true if routed from abc_input
 
   const AbcCompleteScreen({
     super.key,
     required this.userId,
     required this.abcId,
+    this.fromAbcInput = false,
   });
 
   @override
@@ -49,31 +51,41 @@ class AbcCompleteScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _AbcCompact(
-                        activatingEvent: data['activatingEvent'] ?? '',
-                        belief: data['belief'] ?? '',
-                        c1Physical: data['c1_physical'] ?? '',
-                        c2Emotion: data['c2_emotion'] ?? '',
-                        c3Behavior: data['c3_behavior'] ?? '',
+                      if (fromAbcInput) ...[
+                        _AbcCompact(
+                          activatingEvent: data['activatingEvent'] ?? '',
+                          belief: data['belief'] ?? '',
+                          c1Physical: data['c1_physical'] ?? '',
+                          c2Emotion: data['c2_emotion'] ?? '',
+                          c3Behavior: data['c3_behavior'] ?? '',
+                        ),
+                        const SizedBox(height: 18),
+                      ],
+                      _ReportCard(
+                        report: data['report'] ?? '리포트가 없습니다.',
+                        alwaysExpanded: !fromAbcInput,
                       ),
-                      const SizedBox(height: 18),
-                      _ReportCard(report: data['report'] ?? '리포트가 없습니다.'),
                     ],
                   ),
                 );
               },
             ),
           ),
-          bottomNavigationBar: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-            child: NavigationButtons(
-              leftLabel: '돌아가기',
-              rightLabel: '홈으로',
-              onBack: () => Navigator.pop(context),
-              onNext: () => Navigator.pushNamedAndRemoveUntil(
-                  context, '/home', (_) => false),
-            ),
-          ),
+          bottomNavigationBar: fromAbcInput
+              ? Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: PrimaryActionButton(
+                      onPressed: () {
+                        Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
+                      },
+                      text:  '홈으로'
+                    )
+                  ),
+                )
+              : null,
         ),
       ),
     );
@@ -107,7 +119,7 @@ class _AbcCompact extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      elevation: 5,
+      elevation: 1,
       color: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       child: Padding(
@@ -298,7 +310,8 @@ class _AbcCompact extends StatelessWidget {
 // ---------------- Report Card ----------------
 class _ReportCard extends StatefulWidget {
   final String report;
-  const _ReportCard({required this.report});
+  final bool alwaysExpanded;
+  const _ReportCard({required this.report, this.alwaysExpanded = false});
 
   @override
   State<_ReportCard> createState() => _ReportCardState();
@@ -311,6 +324,7 @@ class _ReportCardState extends State<_ReportCard>
   @override
   Widget build(BuildContext context) {
     final primary = AppColors.indigo.shade700;
+    final bool expanded = widget.alwaysExpanded ? true : _expanded;
 
     return AnimatedSize(
       duration: const Duration(milliseconds: 220),
@@ -360,18 +374,19 @@ class _ReportCardState extends State<_ReportCard>
                     ),
                   ),
                 ),
-                TextButton(
-                  onPressed: () => setState(() => _expanded = !_expanded),
-                  style: TextButton.styleFrom(
-                    foregroundColor: primary,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 8),
+                if (!widget.alwaysExpanded)
+                  TextButton(
+                    onPressed: () => setState(() => _expanded = !_expanded),
+                    style: TextButton.styleFrom(
+                      foregroundColor: primary,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 8),
+                    ),
+                    child: Text(
+                      _expanded ? '접기' : '더보기',
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
                   ),
-                  child: Text(
-                    _expanded ? '접기' : '더보기',
-                    style: const TextStyle(fontWeight: FontWeight.w800),
-                  ),
-                ),
               ],
             ),
             const SizedBox(height: 12),
@@ -400,7 +415,7 @@ class _ReportCardState extends State<_ReportCard>
                   fontFamily: 'Pretendard',
                 ),
               ),
-              crossFadeState: _expanded
+              crossFadeState: expanded
                   ? CrossFadeState.showSecond
                   : CrossFadeState.showFirst,
               duration: const Duration(milliseconds: 220),

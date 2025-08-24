@@ -8,6 +8,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:gad_app_team/widgets/aspect_viewport.dart';
+import 'package:gad_app_team/features/llm/abc_complete.dart';
 // import 'package:gad_app_team/data/user_provider.dart';
 
 class GridItem {
@@ -1903,6 +1904,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
             TextButton(
               child: Text(_isEditing ? '수정' : '확인'),
               onPressed: () async {
+                String savedAbcId;
                 if (_isEditing) {
                   // 편집: 기존 문서에 덮어쓰기 (백업은 onEdit에서 수행)
                   final docRef = firestore
@@ -1917,6 +1919,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                     'completedAt': FieldValue.serverTimestamp(),
                   };
                   await docRef.set(payload, SetOptions(merge: false));
+                  savedAbcId = widget.abcId!;
                 } else {
                   // 신규: 시퀀스 ID로 생성
                   final newId = await _nextSequencedDocId(userId, 'abc_models');
@@ -1930,6 +1933,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                         'startedAt'  : widget.startedAt,
                         'completedAt': FieldValue.serverTimestamp(),
                       });
+                  savedAbcId = newId;
                 }
 
                 await _saveSelectedChipsToFirestore();
@@ -1964,7 +1968,16 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                 _sessionCompleted = true;
 
                 if (!context.mounted) return;
-                Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => AbcCompleteScreen(
+                      userId: userId, 
+                      abcId: savedAbcId,
+                      fromAbcInput: true,
+                    )
+                  )
+                );
               },
             ),
           ],
