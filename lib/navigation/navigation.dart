@@ -29,6 +29,7 @@ class CustomNavigationBar extends StatelessWidget {
         BottomNavigationBarItem(icon: Icon(Icons.library_add), label: '일기 쓰기'),
         BottomNavigationBarItem(icon: Icon(Icons.menu), label: '일기 목록'),
         BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: '내 정보'),
+        //BottomNavigationBarItem(icon: Icon(Icons.menu), label: '분석'),
       ],
     );
   }

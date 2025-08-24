@@ -1,0 +1,13 @@
+# Node.js
+node_modules/
+lib/
+
+# Firebase emulator
+emulator-data/
+
+# Environment variables
+.env
+
+# Logs
+npm-debug.log
+yarn-error.log
