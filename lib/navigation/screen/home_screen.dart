@@ -13,6 +13,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:gad_app_team/features/contents/diary_directory_screen.dart';
+import 'package:gad_app_team/features/llm/llm_test_screen.dart';
 import 'myinfo_screen.dart';
 
 /// 홈 화면
@@ -100,6 +101,8 @@ class _HomeScreenState extends State<HomeScreen> {
         return const NotificationDirectoryScreen();
       case 3:
         return const MyInfoScreen();
+      case 4:
+        return const AbcAnalysisScreen();  
       default:
         return _homePage();
     }

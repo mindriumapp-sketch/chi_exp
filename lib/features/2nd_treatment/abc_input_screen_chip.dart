@@ -2088,6 +2088,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
         'c1_physical'    : c1,
         'c2_emotion'     : c2,
         'c3_behavior'    : c3,
+        'report'         : null,
       };
 
       if (!mounted) return;

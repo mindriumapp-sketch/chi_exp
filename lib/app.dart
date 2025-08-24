@@ -61,6 +61,7 @@ class MyApp extends StatelessWidget {
         '/before_survey': (context) => BeforeSurveyScreen(),
         '/after_survey': (context) => AfterSurveyScreen(),
         '/thanks': (context) => ThanksScreen(),
+      
       },
     );
   }

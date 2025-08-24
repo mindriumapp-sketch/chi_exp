@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:gad_app_team/common/constants.dart';
+import 'package:gad_app_team/features/llm/abc_complete.dart';
 import 'package:gad_app_team/widgets/card_container.dart';
 import 'package:intl/intl.dart';
 import 'package:gad_app_team/features/2nd_treatment/abc_input_screen_chip.dart';
@@ -362,6 +363,41 @@ class _AbcCardState extends State<_AbcCard> {
         _kv('B(생각)', m.belief),
         const SizedBox(height: 16),
         _kvC('C(결과)', m.cPhysical, m.cEmotion, m.cBehavior),
+        const SizedBox(height: 20),
+        // ====== 리포트 보기 버튼 추가 ======
+        Align(
+          alignment: Alignment.centerRight,
+          child: ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.indigo,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              elevation: 1,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+            ),
+            icon: const Icon(Icons.analytics, color: Colors.white, size: 20),
+            label: const Text(
+              '리포트 보기',
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            ),
+            onPressed: () {
+              final user = FirebaseAuth.instance.currentUser;
+              final userId = user?.uid; // 현재 로그인한 사용자
+              final abcId = widget.model.id; // 또는 doc.id, 각 일기 문서의 id
+
+              if (userId != null) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => AbcCompleteScreen(
+                      userId: userId,
+                      abcId: abcId,
+                    ),
+                  ),
+                );
+              }
+            },
+          ),
+        ),
       ],
     );
   }

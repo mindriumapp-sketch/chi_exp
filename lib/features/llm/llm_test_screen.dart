@@ -42,13 +42,13 @@ class _AbcAnalysisScreenState extends State<AbcAnalysisScreen> {
     'C3': 36 * 1000,
   };
 
-  // ✅ 빈도/칩 요약(연구 지표 반영)
-  final int daysWritten = 8;
-  final int totalDays = 10;
-  final List<String> selectedChips = ['발표', '불안', '성취감', '사람들', '초조'];
+  // 패턴/트리거/대처 습관 더미
+  final List<String> triggers = ['공식 발표', '낯선 청중', '시간 압박'];
+  final List<String> distortions = ['흑백논리', '재앙화', '과잉일반화'];
+  final List<String> coping = ['심호흡 4-6-4', '메모로 생각 정리', '발표 전 리허설'];
 
   // 성찰 질문 더미
-  final List<String> reflectionPrompts = const [
+  final List<String> reflectionPrompts = [
     '오늘의 불안이 내게 알려주는 유용한 신호는 무엇이었나?',
     '다음 비슷한 상황에서 반복하고 싶은 대처 한 가지는?'
   ];
@@ -57,44 +57,42 @@ class _AbcAnalysisScreenState extends State<AbcAnalysisScreen> {
   Widget build(BuildContext context) {
     return AspectViewport(
       aspect: 9 / 16,
-      // Gradient는 Container.decoration에 적용, 여기엔 투명만 전달
-      background: Colors.transparent,
-      child: Container(
-        decoration: BoxDecoration(gradient: _bgGradient()),
-        child: Scaffold(
-          backgroundColor: Colors.transparent,
-          appBar: CustomAppBar(title: '오늘의 분석'),
-          body: MediaQuery(
-            data: MediaQuery.of(context).copyWith(textScaler: const TextScaler.linear(1)),
-            child: SafeArea(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _banner(),
-                    const SizedBox(height: 14),
-                    _summaryRow(),
-                    const SizedBox(height: 14),
-                    _emotionDiversityCard(),
-                    const SizedBox(height: 14),
-                    _abcKeyCards(),
-                    const SizedBox(height: 14),
-                    _reflectionBox(),
-                    const SizedBox(height: 90), // bottom nav 공간
-                  ],
-                ),
+      background: _bgGradient().colors.first,
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: CustomAppBar(title: '오늘의 분석'),
+        body: MediaQuery(
+          data: MediaQuery.of(context).copyWith(textScaler: const TextScaler.linear(1)),
+          child: SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _banner(),
+                  const SizedBox(height: 14),
+                  _summaryRow(),
+                  const SizedBox(height: 14),
+                  _emotionDiversityCard(),
+                  const SizedBox(height: 14),
+                  _abcKeyCards(),
+                  const SizedBox(height: 14),
+                  _patternRow(),
+                  const SizedBox(height: 14),
+                  _reflectionBox(),
+                  const SizedBox(height: 90), // bottom nav 공간
+                ],
               ),
             ),
           ),
-          bottomNavigationBar: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-            child: NavigationButtons(
-              leftLabel: '돌아가기',
-              rightLabel: '완료',
-              onBack: () => Navigator.pop(context),
-              onNext: () => Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false),
-            ),
+        ),
+        bottomNavigationBar: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+          child: NavigationButtons(
+            leftLabel: '돌아가기',
+            rightLabel: '완료',
+            onBack: () => Navigator.pop(context),
+            onNext: () => Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false),
           ),
         ),
       ),
@@ -118,7 +116,7 @@ class _AbcAnalysisScreenState extends State<AbcAnalysisScreen> {
           const SizedBox(width: 10),
           const Expanded(
             child: Text(
-              '기록 기반 자동 분석 결과입니다.\n감정 스펙트럼·핵심 문장을 한눈에 확인해보세요.',
+              '기록 기반 자동 분석 결과입니다.\n패턴·감정 다양성·핵심 문장을 한눈에 확인해보세요.',
               style: TextStyle(fontSize: 13, height: 1.35),
             ),
           ),
@@ -130,11 +128,11 @@ class _AbcAnalysisScreenState extends State<AbcAnalysisScreen> {
   Widget _summaryRow() {
     return Row(
       children: [
-        Expanded(child: _miniStat('작성 빈도', '$daysWritten/$totalDays일', Icons.event_available)),
+        Expanded(child: _miniStat('감정 다양성', '${(diversity * 100).round()}%', Icons.bubble_chart)),
         const SizedBox(width: 10),
-        Expanded(child: _miniStat('평균 작성 시간', _averageDurationStr(), Icons.timer_outlined)),
+        Expanded(child: _miniStat('총 작성 시간', _totalDuration(stepTimeMs), Icons.timer_outlined)),
         const SizedBox(width: 10),
-        Expanded(child: _miniStat('칩 사용', '${selectedChips.length}개 · ${_chipsCharCount(selectedChips)}자', Icons.sell_outlined)),
+        Expanded(child: _miniStat('태그 수', emotions.length.toString(), Icons.sell_outlined)),
       ],
     );
   }
@@ -214,6 +212,19 @@ class _AbcAnalysisScreenState extends State<AbcAnalysisScreen> {
     );
   }
 
+  Widget _patternRow() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(child: _patternCard('트리거', triggers, const Color(0xFFFEF3C7), Icons.flash_on_outlined)),
+        const SizedBox(width: 10),
+        Expanded(child: _patternCard('사고 패턴', distortions, const Color(0xFFFFE4E6), Icons.track_changes_outlined)),
+        const SizedBox(width: 10),
+        Expanded(child: _patternCard('대처 습관', coping, const Color(0xFFDCFCE7), Icons.self_improvement_outlined)),
+      ],
+    );
+  }
+
   Widget _reflectionBox() {
     return Container(
       padding: const EdgeInsets.all(18),
@@ -287,49 +298,51 @@ class _AbcAnalysisScreenState extends State<AbcAnalysisScreen> {
   }
 
   Widget _abcCard(String label, String title, String content, Color tint, IconData icon) {
-    return SizedBox(
-      height: 168, // ✅ 세 카드 동일 높이 유지 (긴 텍스트는 요약 + 더보기)
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(colors: [Colors.white, tint], begin: Alignment.topLeft, end: Alignment.bottomRight),
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 12, offset: const Offset(0, 6))],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                _badge(label),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(title, style: TextStyle(color: AppColors.indigo, fontWeight: FontWeight.bold)),
-                ),
-                _softIcon(icon, bg: AppColors.indigo.withOpacity(.08), fg: AppColors.indigo),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Expanded(
-              child: Text(
-                content,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 13, height: 1.4),
-              ),
-            ),
-            Align(
-              alignment: Alignment.bottomRight,
-              child: TextButton.icon(
-                onPressed: () => _showAbcDetailSheet(label, title, content),
-                icon: const Icon(Icons.open_in_full, size: 16),
-                label: const Text('더보기'),
-                style: TextButton.styleFrom(foregroundColor: AppColors.indigo),
-              ),
-            ),
-          ],
-        ),
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: [Colors.white, tint], begin: Alignment.topLeft, end: Alignment.bottomRight),
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 12, offset: const Offset(0, 6))],
       ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _badge(label),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(title, style: TextStyle(color: AppColors.indigo, fontWeight: FontWeight.bold)),
+              ),
+              _softIcon(icon, bg: AppColors.indigo.withOpacity(.08), fg: AppColors.indigo),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(content, style: const TextStyle(fontSize: 13, height: 1.4)),
+        ],
+      ),
+    );
+  }
+
+  Widget _patternCard(String title, List<String> items, Color tint, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        gradient: LinearGradient(colors: [Colors.white, tint], begin: Alignment.topLeft, end: Alignment.bottomRight),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 12, offset: const Offset(0, 6))],
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          _softIcon(icon, bg: Colors.black.withOpacity(.06), fg: Colors.black87),
+          const SizedBox(width: 8),
+          Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+        ]),
+        const SizedBox(height: 10),
+        ...items.map((e) => _bullet(e)).toList(),
+      ]),
     );
   }
 
@@ -375,108 +388,10 @@ class _AbcAnalysisScreenState extends State<AbcAnalysisScreen> {
     return '$mm:$ss';
   }
 
-  String _averageDurationStr() {
-    // 목업: 현재 세션 총합을 평균처럼 표기 (실제 연결 시 세션 수로 나눔)
-    return _totalDuration(stepTimeMs);
-  }
-
-  int _chipsCharCount(List<String> chips) {
-    return chips.fold<int>(0, (sum, e) => sum + e.characters.length);
-  }
-
-  // 상세 시트 (A/B는 단일 텍스트, C는 탭 3분할)
-  void _showAbcDetailSheet(String label, String title, String content) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) {
-        if (label != 'C') {
-          return Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    _badge(label),
-                    const SizedBox(width: 10),
-                    Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                    const Spacer(),
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.pop(ctx),
-                    )
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(content, style: const TextStyle(fontSize: 14, height: 1.5)),
-                const SizedBox(height: 20),
-              ],
-            ),
-          );
-        } else {
-          return DefaultTabController(
-            length: 3,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      _badge('C'),
-                      const SizedBox(width: 10),
-                      const Text('결과', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                      const Spacer(),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () => Navigator.pop(ctx),
-                      )
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const TabBar(
-                      labelColor: Colors.black,
-                      indicatorColor: Colors.black,
-                      tabs: [
-                        Tab(text: '신체'),
-                        Tab(text: '감정'),
-                        Tab(text: '행동'),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    height: 220,
-                    child: TabBarView(
-                      children: [
-                        SingleChildScrollView(child: Text(c1Key, style: TextStyle(fontSize: 14, height: 1.5))),
-                        SingleChildScrollView(child: Text(c2Key, style: TextStyle(fontSize: 14, height: 1.5))),
-                        SingleChildScrollView(child: Text(c3Key, style: TextStyle(fontSize: 14, height: 1.5))),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }
-      },
-    );
-  }
-
   // 배경 그라디언트
-  Color _mix(Color a, Color b, double t) => Color.lerp(a, b, t)!;
+  Color _mix(Color a, Color b, double t) {
+    return Color.lerp(a, b, t)!;
+  }
 
   LinearGradient _bgGradient() {
     return LinearGradient(

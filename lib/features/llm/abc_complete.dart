@@ -1,25 +1,23 @@
 // lib/features/llm/abc_complete_screen.dart
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:gad_app_team/widgets/custom_appbar.dart';
 import 'package:gad_app_team/widgets/aspect_viewport.dart';
 import 'package:gad_app_team/common/constants.dart';
 import 'package:gad_app_team/widgets/navigation_button.dart';
 
 class AbcCompleteScreen extends StatelessWidget {
-  const AbcCompleteScreen({super.key});
+  final String userId;
+  final String abcId;
+
+  const AbcCompleteScreen({
+    super.key,
+    required this.userId,
+    required this.abcId,
+  });
 
   @override
   Widget build(BuildContext context) {
-    // 더미 값 (추후 LLM 연결)
-    final String aSummary = '발표 10분 전, 청중 앞에 섰다';
-    final String bSummary = '실수하면 어쩌지? 불안한 생각이 떠올랐다';
-    final String cSummary = '심장이 두근거리고, 불안했지만 끝까지 발표했다';
-    final double diversity = 0.68; // 감정 다양성 지표(0~1)
-    final List<String> reflectionPrompts = [
-      '오늘의 불안이 내게 남긴 의미는 무엇일까요?',
-      '내일은 어떤 감정을 더 표현하고 싶나요?'
-    ];
-
     return AspectViewport(
       aspect: 9 / 16,
       background: Colors.transparent,
@@ -27,22 +25,44 @@ class AbcCompleteScreen extends StatelessWidget {
         decoration: BoxDecoration(gradient: _bgGradient()),
         child: Scaffold(
           backgroundColor: Colors.transparent,
-          appBar: CustomAppBar(title: '기록 완료'),
+          appBar: const CustomAppBar(title: '감정일기 리포트'),
           body: SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _banner(),
-                  const SizedBox(height: 20),
-                  _abcSummaryCard(aSummary, bSummary, cSummary),
-                  const SizedBox(height: 20),
-                  _diversityCard(diversity),
-                  const SizedBox(height: 20),
-                  _reflectionBox(reflectionPrompts),
-                ],
-              ),
+            child: FutureBuilder<DocumentSnapshot>(
+              future: FirebaseFirestore.instance
+                  .collection('chi_users')
+                  .doc(userId)
+                  .collection('abc_models')
+                  .doc(abcId)
+                  .get(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (!snapshot.hasData || !snapshot.data!.exists) {
+                  return const Center(child: Text('일기 데이터가 없습니다.'));
+                }
+
+                final data = snapshot.data!.data() as Map<String, dynamic>;
+
+                return SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(18, 18, 18, 100),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // ABC 섹션은 컴팩트하게
+                      _AbcCompact(
+                        activatingEvent: data['activatingEvent'] ?? '',
+                        belief: data['belief'] ?? '',
+                        c1Physical: data['c1_physical'] ?? '',
+                        c2Emotion: data['c2_emotion'] ?? '',
+                        c3Behavior: data['c3_behavior'] ?? '',
+                      ),
+                      const SizedBox(height: 18),
+                      _ReportCard(report: data['report'] ?? '리포트가 없습니다.'),
+                    ],
+                  ),
+                );
+              },
             ),
           ),
           bottomNavigationBar: Padding(
@@ -51,154 +71,370 @@ class AbcCompleteScreen extends StatelessWidget {
               leftLabel: '돌아가기',
               rightLabel: '홈으로',
               onBack: () => Navigator.pop(context),
-              onNext: () => Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false),
+              onNext: () =>
+                  Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false),
             ),
           ),
         ),
       ),
     );
   }
+}
 
-  // ===== 위젯 =====
-  Widget _banner() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(.08), blurRadius: 12)],
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.check_circle, color: AppColors.indigo, size: 32),
-          const SizedBox(width: 12),
-          const Expanded(
-            child: Text(
-              '일기가 저장되었어요 ✅\nAI 분석 결과를 확인해보세요.',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-            ),
-          ),
-        ],
-      ),
-    );
+// ---------------- ABC 컴팩트 섹션 ----------------
+class _AbcCompact extends StatelessWidget {
+  final String activatingEvent;
+  final String belief;
+  final String c1Physical;
+  final String c2Emotion;
+  final String c3Behavior;
+
+  const _AbcCompact({
+    required this.activatingEvent,
+    required this.belief,
+    required this.c1Physical,
+    required this.c2Emotion,
+    required this.c3Behavior,
+  });
+
+  // 콤마로 구분된 칩 문자열을 리스트로 변환
+  List<String> _splitChips(String value) {
+    return value.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
   }
 
-  Widget _abcSummaryCard(String a, String b, String c) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(.06), blurRadius: 10)],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('오늘의 ABC 요약',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-          const SizedBox(height: 12),
-          _bullet('A. 상황: $a'),
-          _bullet('B. 생각: $b'),
-          _bullet('C. 결과: $c'),
-        ],
-      ),
-    );
-  }
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 5,
+      color: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 16, 14, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const _SectionLabel(text: '오늘의 ABC 일기'),
+            const SizedBox(height: 12),
 
-  Widget _diversityCard(double v) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFeef2ff), Color(0xFFe0e7ff)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(.06), blurRadius: 10)],
-      ),
-      child: Row(
-        children: [
-          const Expanded(
-            child: Text(
-              '감정 다양성 지표',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-          ),
-          SizedBox(
-            width: 64,
-            height: 64,
-            child: Stack(
-              alignment: Alignment.center,
+            // A: 상황 (칩 형태, 텍스트 길이에 맞게)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                CircularProgressIndicator(
-                  value: v,
-                  strokeWidth: 6,
-                  backgroundColor: Colors.white,
-                  valueColor: AlwaysStoppedAnimation(AppColors.indigo),
+                _circleBadge('A', AppColors.indigo),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('상황',
+                          style: TextStyle(
+                              color: AppColors.indigo,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 13)),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _splitChips(activatingEvent)
+                            .map((chip) => _autoChipBox(chip, AppColors.indigo))
+                            .toList(),
+                      ),
+                    ],
+                  ),
                 ),
-                Text('${(v * 100).round()}%',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
               ],
             ),
-          ),
-        ],
-      ),
-    );
-  }
+            const SizedBox(height: 10),
 
-  Widget _reflectionBox(List<String> prompts) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.indigo,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [BoxShadow(color: AppColors.indigo.withOpacity(.25), blurRadius: 16)],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('오늘의 성찰 질문',
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-          const SizedBox(height: 12),
-          ...prompts.map((q) => _bullet(q, color: Colors.white)).toList(),
-        ],
-      ),
-    );
-  }
-
-  Widget _bullet(String text, {Color color = Colors.black87}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 6,
-            height: 6,
-            margin: const EdgeInsets.only(top: 6, right: 8),
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
+            // B: 생각 (칩 형태, 텍스트 길이에 맞게)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _circleBadge('B', Colors.pink),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('생각',
+                          style: TextStyle(
+                              color: Colors.pink,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 13)),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _splitChips(belief)
+                            .map((chip) => _autoChipBox(chip, Colors.pink))
+                            .toList(),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ),
-          Expanded(
-            child: Text(text,
-                style: TextStyle(fontSize: 14, height: 1.4, color: color)),
-          ),
-        ],
+            const SizedBox(height: 18),
+
+            // C: 신체/감정/행동을 세로로 나열, 각 칩을 길게(텍스트 길이에 맞게)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _circleBadge('C', Colors.teal),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // 신체
+                      Row(
+                        children: [
+                          Icon(Icons.favorite, color: Colors.pink.shade400, size: 17),
+                          const SizedBox(width: 4),
+                          Text('신체',
+                              style: TextStyle(
+                                  color: Colors.pink.shade400,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 12)),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _splitChips(c1Physical)
+                            .map((chip) => _autoChipBox(chip, Colors.pink.shade400))
+                            .toList(),
+                      ),
+                      const SizedBox(height: 10),
+                      // 감정
+                      Row(
+                        children: [
+                          Icon(Icons.emoji_emotions, color: Colors.amber.shade700, size: 17),
+                          const SizedBox(width: 4),
+                          Text('감정',
+                              style: TextStyle(
+                                  color: Colors.amber.shade700,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 12)),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _splitChips(c2Emotion)
+                            .map((chip) => _autoChipBox(chip, Colors.amber.shade700))
+                            .toList(),
+                      ),
+                      const SizedBox(height: 10),
+                      // 행동
+                      Row(
+                        children: [
+                          Icon(Icons.directions_run, color: Colors.teal, size: 17),
+                          const SizedBox(width: 4),
+                          Text('행동',
+                              style: TextStyle(
+                                  color: Colors.teal,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 12)),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _splitChips(c3Behavior)
+                            .map((chip) => _autoChipBox(chip, Colors.teal))
+                            .toList(),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  LinearGradient _bgGradient() {
-    return LinearGradient(
-      colors: [
-        AppColors.indigo.withOpacity(.1),
-        Colors.purple.withOpacity(.1),
-      ],
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
+  // 텍스트 길이에 맞는 칩 박스
+  Widget _autoChipBox(String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.22), width: 1),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: color,
+          fontWeight: FontWeight.w600,
+          fontSize: 14,
+          fontFamily: 'Pretendard',
+        ),
+      ),
     );
   }
+
+  Widget _circleBadge(String text, Color color) {
+    return CircleAvatar(
+      backgroundColor: color,
+      radius: 16,
+      child: Text(
+        text,
+        style: const TextStyle(
+            color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+      ),
+    );
+  }
+}
+
+// ---------------- 리포트 카드 (더보기/접기, 풀폭, 화사한 스타일) ----------------
+class _ReportCard extends StatefulWidget {
+  final String report;
+  const _ReportCard({required this.report});
+
+  @override
+  State<_ReportCard> createState() => _ReportCardState();
+}
+
+class _ReportCardState extends State<_ReportCard> with TickerProviderStateMixin {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = AppColors.indigo.shade700;
+
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeInOut,
+      child: Container(
+        width: double.infinity, // 화면 꽉 채움
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 14),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFFc7d2fe), Color(0xFFe0e7ff), Color(0xFFeef2ff)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: primary.withOpacity(0.2), width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: primary.withOpacity(0.12),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            // 헤더
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.9),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: primary.withOpacity(0.2)),
+                  ),
+                  child: Icon(Icons.auto_awesome, color: primary, size: 22),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    '감정일기 리포트',
+                    style: TextStyle(
+                      color: primary,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 20,
+                      letterSpacing: 0.3,
+                      fontFamily: 'Pretendard',
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => setState(() => _expanded = !_expanded),
+                  style: TextButton.styleFrom(
+                    foregroundColor: primary,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  ),
+                  child: Text(
+                    _expanded ? '접기' : '더보기',
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // 본문 (회색 페이드 제거, 더보기 시 전체 표시)
+            AnimatedCrossFade(
+              firstChild: Text(
+                widget.report,
+                maxLines: 6,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.left,
+                style: const TextStyle(
+                  color: Colors.black87,
+                  fontSize: 17,
+                  height: 1.7,
+                  fontWeight: FontWeight.w700,
+                  fontFamily: 'Pretendard',
+                ),
+              ),
+              secondChild: Text(
+                widget.report,
+                textAlign: TextAlign.left,
+                style: const TextStyle(
+                  color: Colors.black87,
+                  fontSize: 17,
+                  height: 1.8,
+                  fontWeight: FontWeight.w700,
+                  fontFamily: 'Pretendard',
+                ),
+              ),
+              crossFadeState:
+                  _expanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+              duration: const Duration(milliseconds: 220),
+            ),
+            const SizedBox(height: 6),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SectionLabel extends StatelessWidget {
+  final String text;
+  const _SectionLabel({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: const TextStyle(
+        color: Colors.black87,
+        fontWeight: FontWeight.w900,
+        fontSize: 16,
+        letterSpacing: 0.2,
+      ),
+    );
+  }
+}
+
+// ---------------- 배경 그라데이션 ----------------
+LinearGradient _bgGradient() {
+  return const LinearGradient(
+    colors: [Color(0xFFeef2ff), Color(0xFFe0e7ff), Color(0xFFf8fafc)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
 }
