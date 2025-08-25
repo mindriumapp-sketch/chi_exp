@@ -82,6 +82,8 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
   // ===== Session & instrumentation (efficient buffered logging) =====
   String? _sessionId;
   bool _sessionCompleted = false;
+  bool _isPaused = false;
+  DateTime? _pausedAt;
 
   // Counters for summarized metrics (unified)
   int _keyPresses = 0; // all key downs including backspace
@@ -179,6 +181,22 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
       });
     } catch (e) {
       debugPrint('칩 저장 실패: $e');
+    }
+  }
+
+  Future<void> _bumpCustomChipCount(String type, String label) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    try {
+      final docRef = _chipsRef(user.uid).doc('${type}_$label');
+      await docRef.set({
+        'type': type,
+        'label': label,
+        'updatedAt': FieldValue.serverTimestamp(),
+        'count': FieldValue.increment(1),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('칩 카운트 증가 실패: $e');
     }
   }
 
@@ -491,7 +509,10 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.inactive || state == AppLifecycleState.paused) {
-      _markAbandoned('app_background');
+      _pauseSession('app_background');
+      // _markAbandoned('app_background');
+    } else if (state == AppLifecycleState.resumed) {
+      _resumeSession();
     }
   }
 
@@ -988,7 +1009,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                   : (_currentCSubStep < 2 ? '다음' : (_isEditing ? '수정' : '저장')),
               onBack: () {
                 if (_currentStep == 0) {
-                  _markAbandoned('nav_back');
+                  _markAbandoned('disopse_without_save');
                   Navigator.pop(context);
                 } else if (_currentStep == 2 && _currentCSubStep > 0) {
                   setState(() => _currentCSubStep--);
@@ -1194,6 +1215,9 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                         ..clear()
                         ..add(i);
                     }
+                    if (!isSelected && item.isAdd) {
+                      _bumpCustomChipCount('A', item.label);
+                    }
                     _logEvent('chip_toggle', {
                       'section': 'A',
                       'label': item.label,
@@ -1269,6 +1293,9 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                     isSelected
                         ? _selectedBGrid.remove(i)
                         : _selectedBGrid.add(i);
+                    if (!isSelected && item.isAdd) {
+                      _bumpCustomChipCount('B', item.label);
+                    }
                     _logEvent('chip_toggle', {
                       'section': 'B',
                       'label': item.label,
@@ -1378,6 +1405,9 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                 isSelected
                     ? _selectedPhysical.remove(i)
                     : _selectedPhysical.add(i);
+                if (!isSelected && item.isAdd) {
+                  _bumpCustomChipCount('C-physical', item.label);
+                }
                 _logEvent('chip_toggle', {
                   'section': 'C1',
                   'label': item.label,
@@ -1442,6 +1472,9 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                 isSelected
                     ? _selectedEmotion.remove(i)
                     : _selectedEmotion.add(i);
+                if (!isSelected && item.isAdd) {
+                  _bumpCustomChipCount('C-emotion', item.label);
+                }
                 _logEvent('chip_toggle', {
                   'section': 'C2',
                   'label': item.label,
@@ -1507,6 +1540,9 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                 isSelected
                     ? _selectedBehavior.remove(i)
                     : _selectedBehavior.add(i);
+                if (!isSelected && item.isAdd) {
+                  _bumpCustomChipCount('C-behavior', item.label);
+                }
                 _logEvent('chip_toggle', {
                   'section': 'C3',
                   'label': item.label,
@@ -2135,6 +2171,9 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
         'status': 'abandoned',
         'screen': 'AbcInputScreen_chip/${_currentStepKey()}',
         'endedAt': FieldValue.serverTimestamp(),
+        'durationMs': widget.startedAt != null
+            ? DateTime.now().millisecondsSinceEpoch - widget.startedAt!.millisecondsSinceEpoch
+            : null,        
         'reason': reason,
         'keyPresses': _keyPresses,
         'touches': _touches,
@@ -2162,5 +2201,67 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
     _flushEvents();
     _markAbandoned('dispose_without_save');
     super.dispose();
+  }
+
+    Future<void> _pauseSession(String reason) async {
+    try {
+      if (_sessionCompleted || _sessionId == null || _isPaused) return;
+      _isPaused = true;
+      _pausedAt = DateTime.now();
+
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) return;
+
+      // Stop accumulating time while backgrounded
+      _bumpStepTimeToNow(_currentStepKey());
+      await _logEvent('session_paused', {'reason': reason});
+      await _flushEvents();
+
+      await FirebaseFirestore.instance
+          .collection('chi_users')
+          .doc(uid)
+          .collection('abc_sessions')
+          .doc(_sessionId)
+          .set({
+        'status': 'abandoned',
+        'screen': 'AbcInputScreen_chip/${_currentStepKey()}',
+        'stepTimeMs': _stepTimeMs,
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('세션 일시정지 실패: $e');
+    }
+  }
+
+  Future<void> _resumeSession() async {
+    try {
+      if (_sessionCompleted || _sessionId == null || !_isPaused) return;
+      _isPaused = false;
+
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) return;
+
+      final pausedForMs = _pausedAt != null
+          ? DateTime.now().difference(_pausedAt!).inMilliseconds
+          : null;
+      _pausedAt = null;
+
+      // Reset step entry baseline so time after resume starts from now
+      _stepEnteredAt = DateTime.now();
+
+      await _logEvent('session_resumed', {
+        if (pausedForMs != null) 'pausedForMs': pausedForMs,
+      });
+
+      await FirebaseFirestore.instance
+          .collection('chi_users')
+          .doc(uid)
+          .collection('abc_sessions')
+          .doc(_sessionId)
+          .set({
+        'status': 'in_progress',
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('세션 재개 실패: $e');
+    }
   }
 }

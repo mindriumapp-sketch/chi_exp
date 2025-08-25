@@ -9,7 +9,7 @@ import 'package:gad_app_team/widgets/primary_action_button.dart';
 class AbcCompleteScreen extends StatefulWidget {
   final String userId;
   final String abcId;
-  final bool fromAbcInput; // true if routed from abc_input
+  final bool fromAbcInput;
 
   const AbcCompleteScreen({
     super.key,
@@ -28,7 +28,7 @@ class _AbcCompleteScreenState extends State<AbcCompleteScreen> {
   @override
   void initState() {
     super.initState();
-    Future.delayed(const Duration(seconds: 5), () {
+    Future.delayed(const Duration(seconds: 10), () {
       if (mounted) {
         setState(() {
           _loadingTimeout = true;
@@ -59,13 +59,13 @@ class _AbcCompleteScreenState extends State<AbcCompleteScreen> {
                 },
               ),
           body: SafeArea(
-            child: FutureBuilder<DocumentSnapshot>(
-              future: FirebaseFirestore.instance
+            child: StreamBuilder<DocumentSnapshot>(
+              stream: FirebaseFirestore.instance
                   .collection('chi_users')
                   .doc(widget.userId)
                   .collection('abc_models')
                   .doc(widget.abcId)
-                  .get(),
+                  .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
@@ -80,7 +80,6 @@ class _AbcCompleteScreenState extends State<AbcCompleteScreen> {
                 // ✅ report 생성중
                 if (report == null) {
                   if (_loadingTimeout) {
-                    // 5초 넘으면 예시 메시지 보여주기
                     return Center(
                       child: Padding(
                         padding: EdgeInsets.all(18),
@@ -123,7 +122,7 @@ class _AbcCompleteScreenState extends State<AbcCompleteScreen> {
                     ),
                   );
                 }
-
+                
                 // ✅ report가 실패 문구일 경우
                 if (report is String && report.toLowerCase().contains("실패")) {
                   return const Center(
@@ -136,10 +135,8 @@ class _AbcCompleteScreenState extends State<AbcCompleteScreen> {
                   );
                 }
 
-                // ✅ 정상적으로 리포트 생성됨 — 버튼을 동일 스크롤 안에서 자연스럽게 연결
                 final bottomPad = 18.0 + MediaQuery.of(context).viewPadding.bottom;
                 return SingleChildScrollView(
-                  
                         padding: EdgeInsets.fromLTRB(18, 18, 18, bottomPad),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
