@@ -28,7 +28,7 @@ class _AbcCompleteScreenState extends State<AbcCompleteScreen> {
   @override
   void initState() {
     super.initState();
-    Future.delayed(const Duration(seconds: 10), () {
+    Future.delayed(const Duration(seconds: 5), () {
       if (mounted) {
         setState(() {
           _loadingTimeout = true;
