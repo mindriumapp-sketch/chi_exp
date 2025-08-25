@@ -724,11 +724,30 @@ class _NotificationDirectoryScreenState extends State<NotificationDirectoryScree
     );
 
     final picked = await showDateRangePicker(
-      barrierColor: Colors.white,
       context: context,
       firstDate: DateTime(2020),
       lastDate: DateTime(2100),
       initialDateRange: _selectedRange ?? initialRange,
+      helpText: '기간 선택',
+      cancelText: '취소',
+      saveText: '적용',
+      builder: (context, child) {
+        return Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 360, maxHeight: 540),
+            child: Theme(
+              data: Theme.of(context).copyWith(
+                dialogTheme: DialogTheme(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+              ),
+              child: child!,
+            ),
+          ),
+        );
+      },
     );
 
     if (picked != null) {
