@@ -12,16 +12,16 @@ import 'package:gad_app_team/features/llm/abc_complete.dart';
 // import 'package:gad_app_team/data/user_provider.dart';
 
 class GridItem {
-  final IconData icon;
+  // final IconData icon;
   final String label;
   final bool isAdd;
   final Color? borderColor; // per-item border color (when not selected)
   final double? borderWidth; // per-item border width
   const GridItem({
-    required this.icon,
+    // required this.icon,
     required this.label,
     this.isAdd = false,
-    this.borderColor,
+    this.borderColor = Colors.black12,
     this.borderWidth,
   });
 }
@@ -135,31 +135,15 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
 
   // 1. 신체증상 전용 칩
   final List<GridItem> _physicalChips = [
-    GridItem(icon: Icons.bed, label: '불면'),
-    GridItem(icon: Icons.favorite, label: '두근거림'),
-    GridItem(icon: Icons.sick, label: '메스꺼움'),
-    GridItem(icon: Icons.spa, label: '식은땀'),
-    GridItem(icon: Icons.waves, label: '호흡곤란'),
-    GridItem(icon: Icons.healing, label: '근육긴장'),
-    GridItem(icon: Icons.thermostat, label: '열감'),
-    GridItem(icon: Icons.bug_report, label: '두통'),
-    GridItem(icon: Icons.sports_handball, label: '손떨림'),
-    GridItem(icon: Icons.add, label: '추가', isAdd: true),
+    GridItem(label: '가슴 두근거림'),
+    GridItem(label: '+ 추가', isAdd: true),
   ];
   final Set<int> _selectedPhysical = {};
 
   // 2. 감정 전용 칩
   final List<GridItem> _emotionChips = [
-    GridItem(icon: Icons.sentiment_very_dissatisfied, label: '불안'),
-    GridItem(icon: Icons.flash_on, label: '분노'),
-    GridItem(icon: Icons.sentiment_dissatisfied, label: '슬픔'),
-    GridItem(icon: Icons.visibility_off, label: '두려움'),
-    GridItem(icon: Icons.sentiment_neutral, label: '당황스러움'),
-    GridItem(icon: Icons.person_off, label: '외로움'),
-    GridItem(icon: Icons.thumb_down, label: '실망'),
-    GridItem(icon: Icons.emoji_people, label: '수치심'),
-    GridItem(icon: Icons.sentiment_dissatisfied, label: '걱정됨'),
-    GridItem(icon: Icons.add, label: '추가', isAdd: true),
+    GridItem(label: '두려움'),
+    GridItem(label: '+ 추가', isAdd: true),
   ];
   // Emotion labels for filtering C-2 chips in feedback
   final Set<int> _selectedEmotion = {};
@@ -171,19 +155,14 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
 
   // 1. 칩 데이터 및 선택 상태 추가
   final List<GridItem> _aGridChips = [
-    GridItem(icon: Icons.work, label: '회의'),
-    GridItem(icon: Icons.school, label: '수업'),
-    GridItem(icon: Icons.people, label: '모임'),
-    // ... (상황에 맞는 칩 추가)
-    GridItem(icon: Icons.add, label: '추가', isAdd: true),
+    GridItem(label: '자전거 타기'),
+    GridItem(label: ' + 추가', isAdd: true),
   ];
   final Set<int> _selectedAGrid = {};
 
   final List<GridItem> _bGridChips = [
-    GridItem(icon: Icons.psychology, label: '실수할까 걱정'),
-    GridItem(icon: Icons.warning, label: '비난받을까 두려움'),
-    // ... (생각에 맞는 칩 추가)
-    GridItem(icon: Icons.add, label: '추가', isAdd: true),
+    GridItem(label: '넘어질까봐 두려움'),
+    GridItem(label: '+ 추가', isAdd: true),
   ];
   final Set<int> _selectedBGrid = {};
 
@@ -222,7 +201,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
               if (!_aGridChips.any((chip) => chip.label == label)) {
                 _aGridChips.insert(
                   _aGridChips.length - 1,
-                  GridItem(icon: Icons.circle, label: label, isAdd: true),
+                  GridItem(label: label, isAdd: true),
                 );
               }
               break;
@@ -230,7 +209,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
               if (!_bGridChips.any((chip) => chip.label == label)) {
                 _bGridChips.insert(
                   _bGridChips.length - 1,
-                  GridItem(icon: Icons.circle, label: label, isAdd: true),
+                  GridItem(label: label, isAdd: true),
                 );
               }
               break;
@@ -238,7 +217,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
               if (!_physicalChips.any((chip) => chip.label == label)) {
                 _physicalChips.insert(
                   _physicalChips.length - 1,
-                  GridItem(icon: Icons.circle, label: label, isAdd: true),
+                  GridItem(label: label, isAdd: true),
                 );
               }
               break;
@@ -246,7 +225,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
               if (!_emotionChips.any((chip) => chip.label == label)) {
                 _emotionChips.insert(
                   _emotionChips.length - 1,
-                  GridItem(icon: Icons.circle, label: label, isAdd: true),
+                  GridItem(label: label, isAdd: true),
                 );
               }
               break;
@@ -254,7 +233,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
               if (!_behaviorChips.any((chip) => chip.label == label)) {
                 _behaviorChips.insert(
                   _behaviorChips.length - 1,
-                  GridItem(icon: Icons.circle, label: label, isAdd: true),
+                  GridItem(label: label, isAdd: true),
                 );
               }
               break;
@@ -330,7 +309,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
     final idx = chips.indexWhere((c) => c.label == label);
     if (idx != -1) return idx;
     final insertIdx = chips.length - 1; // '추가' 칩 앞에 삽입
-    chips.insert(insertIdx, GridItem(icon: Icons.circle, label: label));
+    chips.insert(insertIdx, GridItem(label: label));
     return insertIdx;
   }
 
@@ -438,17 +417,8 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
 
     // 기본 칩 세팅
     _behaviorChips = [
-      GridItem(icon: Icons.event_busy, label: '결석'),
-      GridItem(icon: Icons.event_note, label: '약속 안 잡기'),
-      GridItem(icon: Icons.phone_disabled, label: '전화 안 받기'),
-      GridItem(icon: Icons.mark_email_unread, label: '문자 안 읽기'),
-      GridItem(icon: Icons.event_seat, label: '뒷자리나 구석에 앉기'),
-      GridItem(icon: Icons.question_mark, label: '질문 피하기'),
-      GridItem(icon: Icons.phone_android, label: '휴대폰 만지기'),
-      GridItem(icon: Icons.visibility_off, label: '시선 피하기'),
-      GridItem(icon: Icons.bed, label: '잠 자기'),
-      GridItem(icon: Icons.sports_esports, label: '게임'),
-      GridItem(icon: Icons.add, label: '추가', isAdd: true),
+      GridItem(label: '자전거 끌고가기'),
+      GridItem(label: '+ 추가', isAdd: true),
     ];
 
       _loadCustomChips();
@@ -571,7 +541,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                             child: TextField(
                               controller: _customAKeywordController,
                               decoration: const InputDecoration(
-                                hintText: '예: 자전거 타기',
+                                // hintText: '예: 자전거 타기',
                                 border: InputBorder.none,
                                 isDense: true,
                               ),
@@ -597,7 +567,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                         setState(() {
                           _aGridChips.insert(
                             _aGridChips.length - 1,
-                            GridItem(icon: Icons.circle, label: val, isAdd: true),
+                            GridItem(label: val, isAdd: true),
                           );
                           // 현재 세션에 추가된 칩으로 추적
                           _addToCurrentSession('A', val);
@@ -679,7 +649,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                             child: TextField(
                               controller: _customBKeywordController,
                               decoration: const InputDecoration(
-                                hintText: '예: 넘어질까봐 두려움',
+                                // hintText: '예: 넘어질까봐 두려움',
                                 border: InputBorder.none,
                                 isDense: true,
                               ),
@@ -705,7 +675,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                         setState(() {
                           _bGridChips.insert(
                             _bGridChips.length - 1,
-                            GridItem(icon: Icons.circle, label: val, isAdd: true),
+                            GridItem(label: val, isAdd: true),
                           );
                           // 현재 세션에 추가된 칩으로 추적
                           _addToCurrentSession('B', val);
@@ -786,7 +756,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                             child: TextField(
                               controller: _customSymptomController,
                               decoration: const InputDecoration(
-                                hintText: '예: 가슴 두근거림',
+                                // hintText: '예: 가슴 두근거림',
                                 border: InputBorder.none,
                                 isDense: true,
                               ),
@@ -812,7 +782,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                         setState(() {
                           _physicalChips.insert(
                             _physicalChips.length - 1,
-                            GridItem(icon: Icons.circle, label: value, isAdd: true),
+                            GridItem(label: value, isAdd: true),
                           );
                           // 현재 세션에 추가된 칩으로 추적
                           _addToCurrentSession('C-physical', value);
@@ -894,7 +864,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                             child: TextField(
                               controller: _customEmotionController,
                               decoration: const InputDecoration(
-                                hintText: '예: 두려움',
+                                // hintText: '예: 두려움',
                                 border: InputBorder.none,
                                 isDense: true,
                               ),
@@ -920,7 +890,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                         setState(() {
                           _emotionChips.insert(
                             _emotionChips.length - 1,
-                            GridItem(icon: Icons.circle, label: val, isAdd: true),
+                            GridItem(label: val, isAdd: true),
                           );
                           // 현재 세션에 추가된 칩으로 추적
                           _addToCurrentSession('C-emotion', val);
@@ -1073,9 +1043,9 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
       '결과로 나타나는 감정이나 행동',
     ];
     return Card(
-      elevation: 6,
+      elevation: 1,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-      color: const Color.fromARGB(255, 242, 243, 254),
+      color: Colors.indigo.shade50,
       margin: const EdgeInsets.only(bottom: 8),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
@@ -1187,17 +1157,12 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   ActionChip(
-                    avatar: const Icon(
-                      Icons.add,
-                      size: 18,
-                      color: AppColors.indigo,
-                    ),
                     label: const Text(
-                      '추가',
+                      '+ 추가',
                       style: TextStyle(color: AppColors.indigo, fontSize: 13.5),
                     ),
                     backgroundColor: AppColors.indigo50,
-                    side: BorderSide(color: AppColors.indigo, width: 1),
+                    side: BorderSide(color: AppColors.indigo.shade100, width: 1),
                     onPressed:_addAKeyword,
                     // onPressed: widget.isExampleMode ? null : _addAKeyword,
                     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -1212,11 +1177,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
               final item = _aGridChips[i];
               final isSelected = _selectedAGrid.contains(i);
               return FilterChip(
-                avatar: Icon(
-                  item.icon,
-                  size: 18,
-                  color: isSelected ? AppColors.white : Colors.grey.shade800,
-                ),
                 label: Text(
                   item.label,
                   style: TextStyle(
@@ -1281,17 +1241,12 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
           children: List.generate(_bGridChips.length, (i) {
             if (i == _bGridChips.length - 1) {
               return ActionChip(
-                avatar: const Icon(
-                  Icons.add,
-                  size: 18,
-                  color: AppColors.indigo,
-                ),
                 label: const Text(
-                  '추가',
+                  '+ 추가',
                   style: TextStyle(color: AppColors.indigo, fontSize: 13.5),
                 ),
                 backgroundColor: AppColors.indigo50,
-                side: BorderSide(color: AppColors.indigo, width: 1),
+                side: BorderSide(color: AppColors.indigo.shade100, width: 1),
                 onPressed: _addBKeyword,
                 // onPressed: widget.isExampleMode ? null : _addBKeyword,
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -1301,11 +1256,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
               final item = _bGridChips[i];
               final isSelected = _selectedBGrid.contains(i);
               return FilterChip(
-                avatar: Icon(
-                  item.icon,
-                  size: 18,
-                  color: isSelected ? AppColors.white : Colors.grey.shade800,
-                ),
                 label: Text(
                   item.label,
                   style: TextStyle(
@@ -1401,13 +1351,12 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
       children: List.generate(_physicalChips.length, (i) {
         if (i == _physicalChips.length - 1) {
           return ActionChip(
-            avatar: const Icon(Icons.add, size: 18, color: AppColors.indigo),
             label: const Text(
-              '추가',
+              '+ 추가',
               style: TextStyle(color: AppColors.indigo, fontSize: 13.5),
             ),
             backgroundColor: AppColors.indigo50,
-            side: BorderSide(color: AppColors.indigo, width: 1),
+            side: BorderSide(color: AppColors.indigo.shade100, width: 1),
             onPressed: _addCustomSymptom,
             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -1416,11 +1365,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
           final item = _physicalChips[i];
           final isSelected = _selectedPhysical.contains(i);
           return FilterChip(
-            avatar: Icon(
-              item.icon,
-              size: 18,
-              color: isSelected ? AppColors.white : Colors.grey.shade800,
-            ),
             label: Text(
               item.label,
               style: TextStyle(
@@ -1471,13 +1415,12 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
       children: List.generate(_emotionChips.length, (i) {
         if (i == _emotionChips.length - 1) {
           return ActionChip(
-            avatar: const Icon(Icons.add, size: 18, color: AppColors.indigo),
             label: const Text(
-              '추가',
+              '+ 추가',
               style: TextStyle(color: AppColors.indigo, fontSize: 13.5),
             ),
             backgroundColor: AppColors.indigo50,
-            side: BorderSide(color: AppColors.indigo, width: 1),
+            side: BorderSide(color: AppColors.indigo.shade100, width: 1),
             onPressed: _addEmotion,
             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -1486,11 +1429,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
           final item = _emotionChips[i];
           final isSelected = _selectedEmotion.contains(i);
           return FilterChip(
-            avatar: Icon(
-              item.icon,
-              size: 18,
-              color: isSelected ? AppColors.white : Colors.grey.shade800,
-            ),
             label: Text(
               item.label,
               style: TextStyle(
@@ -1541,13 +1479,12 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
       children: List.generate(_behaviorChips.length, (i) {
         if (i == _behaviorChips.length - 1) {
           return ActionChip(
-            avatar: const Icon(Icons.add, size: 18, color: AppColors.indigo),
             label: const Text(
-              '추가',
+              '+ 추가',
               style: TextStyle(color: AppColors.indigo, fontSize: 13.5),
             ),
             backgroundColor: AppColors.indigo50,
-            side: BorderSide(color: AppColors.indigo, width: 1),
+            side: BorderSide(color: AppColors.indigo.shade100, width: 1),
             onPressed: _showAddCGridDialog,
             // onPressed: widget.isExampleMode ? null : _showAddCGridDialog,
             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -1557,11 +1494,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
           final item = _behaviorChips[i];
           final isSelected = _selectedBehavior.contains(i);
           return FilterChip(
-            avatar: Icon(
-              item.icon,
-              size: 18,
-              color: isSelected ? AppColors.white : Colors.grey.shade800,
-            ),
             label: Text(
               item.label,
               style: TextStyle(
@@ -1652,7 +1584,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                             child: TextField(
                               controller: _addCGridController,
                               decoration: const InputDecoration(
-                                hintText: '예: 자전거 끌고가기',
+                                // hintText: '예: 자전거 끌고가기',
                                 border: InputBorder.none,
                                 isDense: true,
                               ),
@@ -1678,7 +1610,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                         setState(() {
                           _behaviorChips.insert(
                             _behaviorChips.length - 1,
-                            GridItem(icon: Icons.circle, label: value, isAdd: true),
+                            GridItem(label: value, isAdd: true),
                           );
                           // 현재 세션에 추가된 칩으로 추적
                           _addToCurrentSession('C-behavior', value);

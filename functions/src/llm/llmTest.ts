@@ -15,6 +15,15 @@ function chipsToLines(chips: string[]) {
   return chips.map((chip) => `- ${chip}`).join("\n");
 }
 
+// 사용자 정보 (예시: chi_users에서 가져온 값)
+const user = {
+  id: "/chi_users/S5draTQ07OZarEme44UzionN7u42",
+  name: "태훈", // 실제 데이터에서 가져오는 값이라고 가정
+};
+
+// 이름 + 존칭
+const userDisplayName = `${user.name}님`;
+
 const prompt = `
 상황:
 ${chipsToLines(activatingEvent)}
@@ -27,25 +36,21 @@ ${chipsToLines(c2Emotion)}
 행동:
 ${chipsToLines(c3Behavior)}
 
-너는 심리상담 전문가야.  
-위 데이터는 사용자가 작성한 CBT 기반 ABC 감정일기야.  
+너는 심리상담 전문가다.
+위 데이터는 CBT 기반 ABC 감정일기다.
 
-너의 임무는 이 데이터를 바탕으로 사용자가 쓴 일기를 읽고 상담사가 짧게 정리해 주는 리포트를 작성하는 것이다.  
+너의 임무는 이 일기 내용을 깊이 있게 이해하고 정리하여, 상담사가 직접 작성하는 듯한 심리 리포트를 작성하는 것이다.
 
-출력 규칙:  
-1) 반드시 **줄글 문단**으로 작성하고, 목록·번호·기호는 사용하지 않는다.  
-2) 길이는 5~6줄 내외여야 한다.  
-3) 구조: 상황 요약 → 생각·감정 해석 → 행동과 감정의 연결 → 마지막에 1~2개의 현실적인 조언.  
-4) 어조는 따뜻하고 공감적이며 전문 용어 없이 일상적인 언어로 작성.  
-5) 아래 예시 스타일을 반드시 참고해 같은 톤과 길이로 작성할 것.  
-
-예시 리포트:  
-"어떤 일을 하면서 확신이 부족하다고 느끼자 마음이 크게 흔들렸을 거예요. 
-스스로 '이게 다 소용없을지도 몰라'라고 생각하면서 불안과 걱정, 짜증이 한꺼번에 몰려온 것 같아요.
-몸에는 특별히 반응이 없었지만 마음의 피로는 분명 커졌을 겁니다. 
-결국 게임이나 술 같은 방법으로 그 순간을 피하려 했던 것 같아요. 
-다음에는 시작 전에 호흡을 가다듬거나, 작은 목표를 하나 정해보는 게 도움이 될 수 있어요. 
-작은 준비가 감정의 무게를 줄여주고 자신감을 높여줄 거예요."
+출력 규칙:
+1) 문단은 2개로 나누고, 줄글로 작성하며 목록·번호·기호는 사용하지 않는다.
+2) 길이는 6~8줄 내외여야 한다.
+3) 구조:
+   - 첫 번째 문단: ${userDisplayName}이 직면한 상황과 그에 따른 생각, 그리고 감정의 흐름을 객관적으로 요약한다.
+   - 두 번째 문단: 그 생각과 감정이 신체적 반응과 행동으로 어떻게 이어졌는지 분석하고, 마지막에 현실적인 조언이나 통찰을 덧붙인다.
+4) 어조는 따뜻하고 공감적이며, 전문 용어 없이 일상적인 언어로 작성한다. 
+   ${userDisplayName}을 직접 지칭하며 대화하는 것처럼 표현한다.
+5) 예시 스타일을 반드시 참고하여 같은 톤과 길이로 작성할 것.
+6) 내담자를 지칭할 때는 반드시 '${userDisplayName}'만 사용한다. "당신", "여러분" 같은 표현은 절대 쓰지 않는다.
 `;
 
 const openai = new OpenAI({
@@ -55,7 +60,13 @@ const openai = new OpenAI({
 async function testLlm() {
   const response = await openai.chat.completions.create({
     model: "gpt-4o-mini",
-    messages: [{ role: "user", content: prompt }],
+    messages: [
+      {
+        role: "system",
+        content: `너는 심리상담 전문가이며, 반드시 내담자를 '${userDisplayName}'으로만 지칭해야 한다.`,
+      },
+      { role: "user", content: prompt },
+    ],
     max_tokens: 700,
   });
 
@@ -64,3 +75,5 @@ async function testLlm() {
 }
 
 testLlm().catch(console.error);
+
+

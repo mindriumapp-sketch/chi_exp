@@ -28,7 +28,7 @@ class _AbcCompleteScreenState extends State<AbcCompleteScreen> {
   @override
   void initState() {
     super.initState();
-    Future.delayed(const Duration(seconds: 5), () {
+    Future.delayed(const Duration(seconds: 8), () {
       if (mounted) {
         setState(() {
           _loadingTimeout = true;
@@ -95,7 +95,7 @@ class _AbcCompleteScreenState extends State<AbcCompleteScreen> {
                             ),
                             const SizedBox(height: 18),
                             Text(
-                              "AI가 리포트를 생성하는 데 시간이 오래 걸리고 있습니다.\n\n"
+                              "AI가 리포트를 생성하는 데 시간이 오래 걸리고 있습니다.\n"
                               "생성된 리포트는 일기 목록에서 확인할 수 있습니다.",
                               textAlign: TextAlign.center,
                               style: TextStyle(
@@ -220,21 +220,21 @@ class _AbcCompact extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      elevation: 1,
+      elevation: 0,
       color: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 16, 14, 14),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const _SectionLabel(text: '오늘의 ABC 일기'),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             // A
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _circleBadge('A', AppColors.indigo),
+                _circleBadge('A', Colors.indigo.shade100),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(
@@ -242,16 +242,16 @@ class _AbcCompact extends StatelessWidget {
                     children: [
                       Text('상황',
                           style: TextStyle(
-                              color: AppColors.indigo,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 13)),
+                            color: Colors.indigo,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 14)),
                       const SizedBox(height: 6),
                       Wrap(
                         spacing: 8,
                         runSpacing: 8,
                         children: _splitChips(activatingEvent)
                             .map((chip) =>
-                                _autoChipBox(chip, AppColors.indigo))
+                                _autoChipBox(chip, AppColors.indigo.shade500))
                             .toList(),
                       ),
                     ],
@@ -264,7 +264,7 @@ class _AbcCompact extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _circleBadge('B', Colors.pink),
+                _circleBadge('B', Colors.indigo.shade300),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(
@@ -272,15 +272,15 @@ class _AbcCompact extends StatelessWidget {
                     children: [
                       Text('생각',
                           style: TextStyle(
-                              color: Colors.pink,
+                              color: Colors.indigo,
                               fontWeight: FontWeight.w800,
-                              fontSize: 13)),
+                              fontSize: 14)),
                       const SizedBox(height: 6),
                       Wrap(
                         spacing: 8,
                         runSpacing: 8,
                         children: _splitChips(belief)
-                            .map((chip) => _autoChipBox(chip, Colors.pink))
+                            .map((chip) => _autoChipBox(chip, Colors.indigo.shade500))
                             .toList(),
                       ),
                     ],
@@ -293,7 +293,7 @@ class _AbcCompact extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _circleBadge('C', Colors.teal),
+                _circleBadge('C', Colors.indigo.shade500),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(
@@ -301,14 +301,12 @@ class _AbcCompact extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.favorite,
-                              color: Colors.pink.shade400, size: 17),
                           const SizedBox(width: 4),
                           Text('신체',
                               style: TextStyle(
-                                  color: Colors.pink.shade400,
+                                  color: Colors.indigo,
                                   fontWeight: FontWeight.w700,
-                                  fontSize: 12)),
+                                  fontSize: 14)),
                         ],
                       ),
                       const SizedBox(height: 6),
@@ -317,20 +315,18 @@ class _AbcCompact extends StatelessWidget {
                         runSpacing: 8,
                         children: _splitChips(c1Physical)
                             .map((chip) =>
-                                _autoChipBox(chip, Colors.pink.shade400))
+                                _autoChipBox(chip, Colors.indigo.shade500))
                             .toList(),
                       ),
                       const SizedBox(height: 10),
                       Row(
                         children: [
-                          Icon(Icons.emoji_emotions,
-                              color: Colors.amber.shade700, size: 17),
                           const SizedBox(width: 4),
                           Text('감정',
                               style: TextStyle(
-                                  color: Colors.amber.shade700,
+                                  color: Colors.indigo,
                                   fontWeight: FontWeight.w700,
-                                  fontSize: 12)),
+                                  fontSize: 14)),
                         ],
                       ),
                       const SizedBox(height: 6),
@@ -339,20 +335,18 @@ class _AbcCompact extends StatelessWidget {
                         runSpacing: 8,
                         children: _splitChips(c2Emotion)
                             .map((chip) =>
-                                _autoChipBox(chip, Colors.amber.shade700))
+                                _autoChipBox(chip, Colors.indigo.shade500))
                             .toList(),
                       ),
                       const SizedBox(height: 10),
                       Row(
                         children: [
-                          Icon(Icons.directions_run,
-                              color: Colors.teal, size: 17),
                           const SizedBox(width: 4),
                           Text('행동',
                               style: TextStyle(
-                                  color: Colors.teal,
+                                  color: Colors.indigo,
                                   fontWeight: FontWeight.w700,
-                                  fontSize: 12)),
+                                  fontSize: 14)),
                         ],
                       ),
                       const SizedBox(height: 6),
@@ -361,7 +355,7 @@ class _AbcCompact extends StatelessWidget {
                         runSpacing: 8,
                         children: _splitChips(c3Behavior)
                             .map((chip) =>
-                                _autoChipBox(chip, Colors.teal))
+                                _autoChipBox(chip,Colors.indigo.shade500))
                             .toList(),
                       ),
                     ],
@@ -377,17 +371,17 @@ class _AbcCompact extends StatelessWidget {
 
   Widget _autoChipBox(String text, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10), // 수정
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withValues(alpha: 0.22), width: 1), // 수정
+        color: Colors.white, // 수정
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.black12, width: 1), // 수정
       ),
       child: Text(
         text,
         style: TextStyle(
-          color: color,
-          fontWeight: FontWeight.w600,
+          color: Colors.black,
+          fontWeight: FontWeight.w500,
           fontSize: 14,
           fontFamily: 'Pretendard',
         ),
@@ -398,11 +392,11 @@ class _AbcCompact extends StatelessWidget {
   Widget _circleBadge(String text, Color color) {
     return CircleAvatar(
       backgroundColor: color,
-      radius: 16,
+      radius: 20,
       child: Text(
         text,
         style: const TextStyle(
-            color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+            color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20),
       ),
     );
   }
@@ -424,7 +418,7 @@ class _ReportCardState extends State<_ReportCard>
 
   @override
   Widget build(BuildContext context) {
-    final primary = AppColors.indigo.shade700;
+    final primary = AppColors.indigo;
     final bool expanded = widget.alwaysExpanded ? true : _expanded;
 
     return AnimatedSize(
