@@ -8,6 +8,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:gad_app_team/widgets/aspect_viewport.dart';
+import 'package:gad_app_team/features/llm/abc_complete.dart';
 // import 'package:gad_app_team/data/user_provider.dart';
 
 class GridItem {
@@ -64,7 +65,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
   }
 
   Future<String> _nextSequencedDocId(String uid, String collection) async {
-    // Returns IDs like "abc_models_000001" / "abc_sessions_000001"
     return FirebaseFirestore.instance.runTransaction<String>((tx) async {
       final ref = _counterRef(uid, collection);
       final snap = await tx.get(ref);
@@ -98,6 +98,9 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
   final FocusNode _rawFocus = FocusNode();
   final Map<TextEditingController, String> _prevText = {};
   final Map<TextEditingController, Timer> _debouncers = {};
+  final Map<TextEditingController, int> _lastLoggedLen = {};
+  bool _suspendTextLogging = false;
+  final Map<TextEditingController, String> _lastLoggedText = {};
 
   // Heartbeat & event buffer
   Timer? _heartbeatTimer;
@@ -184,10 +187,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
   ];
   final Set<int> _selectedBGrid = {};
 
-  // 튜토리얼 단계 상태 (0: 칩 안내, 1: 상황 입력 안내, 2: 상황 입력 후 다음 안내, 3: 생각 입력 안내, 4: 생각 입력 후 다음 안내, 5: 결과 입력 안내, 6: 결과 입력 후 다음 안내)
-  // int _tutorialStep = 0;
-  String? _tutorialError;
-
   // 사용자 정의 칩 저장 함수
   Future<void> _saveCustomChip(String type, String label) async {
     final user = FirebaseAuth.instance.currentUser;
@@ -223,7 +222,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
               if (!_aGridChips.any((chip) => chip.label == label)) {
                 _aGridChips.insert(
                   _aGridChips.length - 1,
-                  GridItem(icon: Icons.circle, label: label),
+                  GridItem(icon: Icons.circle, label: label, isAdd: true),
                 );
               }
               break;
@@ -231,7 +230,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
               if (!_bGridChips.any((chip) => chip.label == label)) {
                 _bGridChips.insert(
                   _bGridChips.length - 1,
-                  GridItem(icon: Icons.circle, label: label),
+                  GridItem(icon: Icons.circle, label: label, isAdd: true),
                 );
               }
               break;
@@ -239,7 +238,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
               if (!_physicalChips.any((chip) => chip.label == label)) {
                 _physicalChips.insert(
                   _physicalChips.length - 1,
-                  GridItem(icon: Icons.circle, label: label),
+                  GridItem(icon: Icons.circle, label: label, isAdd: true),
                 );
               }
               break;
@@ -247,7 +246,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
               if (!_emotionChips.any((chip) => chip.label == label)) {
                 _emotionChips.insert(
                   _emotionChips.length - 1,
-                  GridItem(icon: Icons.circle, label: label),
+                  GridItem(icon: Icons.circle, label: label, isAdd: true),
                 );
               }
               break;
@@ -255,7 +254,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
               if (!_behaviorChips.any((chip) => chip.label == label)) {
                 _behaviorChips.insert(
                   _behaviorChips.length - 1,
-                  GridItem(icon: Icons.circle, label: label),
+                  GridItem(icon: Icons.circle, label: label, isAdd: true),
                 );
               }
               break;
@@ -327,16 +326,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
     }
   }
 
-  // === 편집 모드: 기존 ABC 불러오기 유틸 ===
-  List<String> _splitLabels(dynamic v) {
-    if (v == null) return const [];
-    return v.toString()
-        .split(',')
-        .map((e) => e.trim())
-        .where((e) => e.isNotEmpty)
-        .toList();
-  }
-
   int _ensureChip(List<GridItem> chips, String label) {
     final idx = chips.indexWhere((c) => c.label == label);
     if (idx != -1) return idx;
@@ -346,65 +335,69 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
   }
 
   Future<void> _loadExistingAbc() async {
-    try {
-      final uid = FirebaseAuth.instance.currentUser?.uid;
-      final abcId = widget.abcId;
-      if (uid == null || abcId == null) return;
+  try {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final abcId = widget.abcId;
+    if (uid == null || abcId == null) return;
 
-      final snap = await FirebaseFirestore.instance
-          .collection('chi_users')
-          .doc(uid)
-          .collection('abc_models')
-          .doc(abcId)
-          .get();
+    final snap = await FirebaseFirestore.instance
+        .collection('chi_users')
+        .doc(uid)
+        .collection('abc_models')
+        .doc(abcId)
+        .get();
 
-      final data = snap.data();
-      if (data == null) return;
+    final data = snap.data();
+    if (data == null) return;
 
-      final ae = _splitLabels(data['activatingEvent']);
-      final bl = _splitLabels(data['belief']);
-      final c1 = _splitLabels(data['c1_physical']);
-      final c2 = _splitLabels(data['c2_emotion']);
-      final c3 = _splitLabels(data['c3_behavior']);
+    // ✅ 리스트 안전하게 변환
+    final ae = List<String>.from(data['activatingEvent'] ?? []);
+    final bl = List<String>.from(data['belief'] ?? []);
+    final c1 = List<String>.from(data['c1_physical'] ?? []);
+    final c2 = List<String>.from(data['c2_emotion'] ?? []);
+    final c3 = List<String>.from(data['c3_behavior'] ?? []);
 
-      setState(() {
+    setState(() {
+      // A: 단일 선택
+      if (ae.isNotEmpty) {
+        final idx = _ensureChip(_aGridChips, ae.first);  // ✅ 첫 값만
+        _selectedAGrid
+          ..clear()
+          ..add(idx);
+      }
 
-        // A: 단일 선택
-        if (ae.isNotEmpty) {
-          final idx = _ensureChip(_aGridChips, ae.first);
-          _selectedAGrid
-            ..clear()
-            ..add(idx);
-        }
-        // B: 멀티 선택 가능
-        _selectedBGrid.clear();
-        for (final s in bl) {
-          final idx = _ensureChip(_bGridChips, s);
-          _selectedBGrid.add(idx);
-        }
-        // C1
-        _selectedPhysical.clear();
-        for (final s in c1) {
-          final idx = _ensureChip(_physicalChips, s);
-          _selectedPhysical.add(idx);
-        }
-        // C2
-        _selectedEmotion.clear();
-        for (final s in c2) {
-          final idx = _ensureChip(_emotionChips, s);
-          _selectedEmotion.add(idx);
-        }
-        // C3
-        _selectedBehavior.clear();
-        for (final s in c3) {
-          final idx = _ensureChip(_behaviorChips, s);
-          _selectedBehavior.add(idx);
-        }
-      });
-    } catch (e) {
-      debugPrint('기존 ABC 불러오기 실패: $e');
-    }
+      // B: 멀티 선택 가능
+      _selectedBGrid.clear();
+      for (final s in bl) {
+        final idx = _ensureChip(_bGridChips, s.toString());
+        _selectedBGrid.add(idx);
+      }
+
+      // C1
+      _selectedPhysical.clear();
+      for (final s in c1) {
+        final idx = _ensureChip(_physicalChips, s.toString());
+        _selectedPhysical.add(idx);
+      }
+
+      // C2
+      _selectedEmotion.clear();
+      for (final s in c2) {
+        final idx = _ensureChip(_emotionChips, s.toString());
+        _selectedEmotion.add(idx);
+      }
+
+      // C3
+      _selectedBehavior.clear();
+      for (final s in c3) {
+        final idx = _ensureChip(_behaviorChips, s.toString());
+        _selectedBehavior.add(idx);
+      }
+    });
+  } catch (e) {
+    debugPrint('기존 ABC 불러오기 실패: $e');
   }
+}
 
   /// Wrap dialog content to match the same viewport width calculation as AspectViewport (aspect = 9/16).
   Widget _viewportWrap({
@@ -455,44 +448,14 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
       GridItem(icon: Icons.visibility_off, label: '시선 피하기'),
       GridItem(icon: Icons.bed, label: '잠 자기'),
       GridItem(icon: Icons.sports_esports, label: '게임'),
-      // 튜토리얼 칩 추가
-      // if (widget.isExampleMode)
-      //   GridItem(icon: Icons.circle, label: '자전거를 타지 않았어요'),
       GridItem(icon: Icons.add, label: '추가', isAdd: true),
     ];
 
-    // 사용자 정의 칩 불러오기
-    // if (!widget.isExampleMode) {
       _loadCustomChips();
-    // }
 
     if (_isEditing) {
       _loadExistingAbc();
     }
-
-    // 튜토리얼 모드 전용 기본 칩 세팅
-    // if (widget.isExampleMode) {
-    //   if (!_aGridChips.any((c) => c.label == '자전거를 타려고 함')) {
-    //     _aGridChips.insert(
-    //       _aGridChips.length - 1,
-    //       GridItem(icon: Icons.circle, label: '자전거를 타려고 함'),
-    //     );
-    //   }
-    //   if (!_bGridChips.any((c) => c.label == '넘어질까봐 두려움')) {
-    //     _bGridChips.insert(
-    //       _bGridChips.length - 1,
-    //       GridItem(icon: Icons.circle, label: '넘어질까봐 두려움'),
-    //     );
-    //   }
-    //   if (!_behaviorChips.any((c) => c.label == '자전거를 타지 않았어요')) {
-    //     _behaviorChips.insert(
-    //       _behaviorChips.length - 1,
-    //       GridItem(icon: Icons.circle, label: '자전거를 타지 않았어요'),
-    //     );
-    //   }
-    //   _tutorialStep = 0;
-    //   _tutorialError = null;
-    // }
   }
 
   @override
@@ -621,37 +584,10 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                         '(이)라는 일이 있었습니다.',
                         style: TextStyle(color: Colors.black, fontSize: 16),
                       ),
-                  if (_tutorialError != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8.0),
-                      child: Text(
-                        _tutorialError!,
-                        style: TextStyle(color: Colors.red, fontSize: 13),
-                      ),
-                    ),
                   const SizedBox(height: 24),
                   FilledButton(
                     onPressed: () {
                       final val = _customAKeywordController.text.trim();
-                      // if (widget.isExampleMode && _tutorialStep == 1) {
-                      //   if (val == '자전거를 타려고 함') {
-                      //     setState(() {
-                      //       _aGridChips.insert(
-                      //         _aGridChips.length - 1,
-                      //         GridItem(icon: Icons.circle, label: val),
-                      //       );
-                      //       _tutorialStep = 2;
-                      //       _tutorialError = null;
-                      //     });
-                      //     _customAKeywordController.clear();
-                      //     Navigator.pop(context);
-                      //   } else {
-                      //     setState(() {
-                      //       _tutorialError = '예시와 똑같이 입력해보세요!';
-                      //     });
-                      //   }
-                      //   return;
-                      // }
                       if (val.isNotEmpty) {
                         // 중복 체크
                         if (_isDuplicateChip('A', val)) {
@@ -661,12 +597,17 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                         setState(() {
                           _aGridChips.insert(
                             _aGridChips.length - 1,
-                            GridItem(icon: Icons.circle, label: val),
+                            GridItem(icon: Icons.circle, label: val, isAdd: true),
                           );
                           // 현재 세션에 추가된 칩으로 추적
                           _addToCurrentSession('A', val);
                         });
+                        _suspendTextLogging = true;
                         _customAKeywordController.clear();
+                        _prevText[_customAKeywordController] = '';
+                        _lastLoggedLen[_customAKeywordController] = 0;
+                        _lastLoggedText[_customAKeywordController] = '';
+                        _suspendTextLogging = false;
                         Navigator.pop(context);
                       }
                     },
@@ -751,37 +692,10 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                         '(이)라는 생각이 떠올랐습니다.',
                         style: TextStyle(color: Colors.black, fontSize: 16),
                       ),
-                  if (_tutorialError != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8.0),
-                      child: Text(
-                        _tutorialError!,
-                        style: TextStyle(color: Colors.red, fontSize: 13),
-                      ),
-                    ),
                   const SizedBox(height: 24),
                   FilledButton(
                     onPressed: () {
                       final val = _customBKeywordController.text.trim();
-                      // if (widget.isExampleMode && _tutorialStep == 3) {
-                      //   if (val == '넘어질까봐 두려움') {
-                      //     setState(() {
-                      //       _bGridChips.insert(
-                      //         _bGridChips.length - 1,
-                      //         GridItem(icon: Icons.circle, label: val),
-                      //       );
-                      //       _tutorialStep = 4;
-                      //       _tutorialError = null;
-                      //     });
-                      //     _customBKeywordController.clear();
-                      //     Navigator.pop(context);
-                      //   } else {
-                      //     setState(() {
-                      //       _tutorialError = '예시와 똑같이 입력해보세요!';
-                      //     });
-                      //   }
-                      //   return;
-                      // }
                       if (val.isNotEmpty) {
                         // 중복 체크
                         if (_isDuplicateChip('B', val)) {
@@ -791,12 +705,17 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                         setState(() {
                           _bGridChips.insert(
                             _bGridChips.length - 1,
-                            GridItem(icon: Icons.circle, label: val),
+                            GridItem(icon: Icons.circle, label: val, isAdd: true),
                           );
                           // 현재 세션에 추가된 칩으로 추적
                           _addToCurrentSession('B', val);
                         });
+                        _suspendTextLogging = true;
                         _customBKeywordController.clear();
+                        _prevText[_customBKeywordController] = '';
+                        _lastLoggedLen[_customBKeywordController] = 0;
+                        _lastLoggedText[_customBKeywordController] = '';
+                        _suspendTextLogging = false;
                         Navigator.pop(context);
                       }
                     },
@@ -893,12 +812,17 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                         setState(() {
                           _physicalChips.insert(
                             _physicalChips.length - 1,
-                            GridItem(icon: Icons.circle, label: value),
+                            GridItem(icon: Icons.circle, label: value, isAdd: true),
                           );
                           // 현재 세션에 추가된 칩으로 추적
                           _addToCurrentSession('C-physical', value);
                         });
+                        _suspendTextLogging = true;
                         _customSymptomController.clear();
+                        _prevText[_customSymptomController] = '';
+                        _lastLoggedLen[_customSymptomController] = 0;
+                        _lastLoggedText[_customSymptomController] = '';
+                        _suspendTextLogging = false;
                         Navigator.pop(context);
                       }
                     },
@@ -996,12 +920,17 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                         setState(() {
                           _emotionChips.insert(
                             _emotionChips.length - 1,
-                            GridItem(icon: Icons.circle, label: val),
+                            GridItem(icon: Icons.circle, label: val, isAdd: true),
                           );
                           // 현재 세션에 추가된 칩으로 추적
                           _addToCurrentSession('C-emotion', val);
                         });
+                        _suspendTextLogging = true;
                         _customEmotionController.clear();
+                        _prevText[_customEmotionController] = '';
+                        _lastLoggedLen[_customEmotionController] = 0;
+                        _lastLoggedText[_customEmotionController] = '';
+                        _suspendTextLogging = false;
                         Navigator.pop(context);
                       }
                     },
@@ -1063,7 +992,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                   }
                 },
                 child: Listener(
-                  behavior: HitTestBehavior.translucent,
+                  behavior: HitTestBehavior.deferToChild,
                   onPointerDown: (e) {
                     final now = DateTime.now();
                     if (_lastTouchTs == null ||
@@ -1239,60 +1168,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
     }
   }
 
-  // 튜토리얼 안내 인라인 메시지 위젯
-  // Widget _buildTutorialInlineMessage() {
-  //   String text = '';
-  //   switch (_tutorialStep) {
-  //     case 0:
-  //       text = "위에 '자전거를 타려고 함' 칩을 눌러 선택해보세요!";
-  //       break;
-  //     case 1:
-  //       text = "선택한 뒤 아래의 '다음' 버튼을 눌러주세요!";
-  //       break;
-  //     case 2:
-  //       text = "입력한 내용을 선택하고\n'다음' 버튼을 눌러주세요!";
-  //       break;
-  //     case 3:
-  //       text = "위에 '넘어질까봐 두려움' 칩을 눌러 선택해보세요!";
-  //       break;
-  //     case 4:
-  //       text = "선택한 뒤 아래의 '다음' 버튼을 눌러주세요!";
-  //       break;
-  //     case 5:
-  //       text = "위에 '자전거를 타지 않았어요' 칩을 눌러 선택해보세요!";
-  //       break;
-  //     case 6:
-  //       text = "선택한 뒤 '확인' 버튼을 눌러주세요!";
-  //       break;
-  //     default:
-  //       return SizedBox.shrink();
-  //   }
-  //   return Align(
-  //     alignment: Alignment.center,
-  //     child: Padding(
-  //       padding: const EdgeInsets.symmetric(horizontal: 24),
-  //       child: Container(
-  //         margin: const EdgeInsets.only(top: 8),
-  //         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-  //         decoration: BoxDecoration(
-  //           color: Colors.white.withValues(alpha: 0.95),
-  //           borderRadius: BorderRadius.circular(16),
-  //           boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 8)],
-  //         ),
-  //         child: Text(
-  //           text,
-  //           style: const TextStyle(
-  //             color: Colors.indigo,
-  //             fontWeight: FontWeight.bold,
-  //             fontSize: 16,
-  //           ),
-  //           textAlign: TextAlign.center,
-  //         ),
-  //       ),
-  //     ),
-  //   );
-  // }
-
   Widget _buildStepA() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1336,10 +1211,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
             } else {
               final item = _aGridChips[i];
               final isSelected = _selectedAGrid.contains(i);
-              final isCurrentSessionChip = _isCurrentSessionChip(
-                'A',
-                item.label,
-              );
               return FilterChip(
                 avatar: Icon(
                   item.icon,
@@ -1383,27 +1254,14 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                 ),
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                onDeleted:
-                    isCurrentSessionChip
-                        ? () => _deleteCustomChip('A', item.label, i)
-                        : null,
-                deleteIcon:
-                    isCurrentSessionChip
-                        ? const Icon(
-                          Icons.close,
-                          size: 18,
-                          color: Colors.redAccent,
-                        )
-                        : null,
+                onDeleted: item.isAdd ? () => _deleteCustomChip('A', item.label, i) : null,
+                deleteIcon: item.isAdd
+                    ? const Icon(Icons.close, size: 18, color: Colors.redAccent)
+                    : null,
               );
             }
           }),
         ),
-        // 아래에 여백 추가
-        // if (widget.isExampleMode && (_tutorialStep >= 0 && _tutorialStep <= 1))
-        //   SizedBox(height: 120), // 원하는 만큼 조절
-        // if (widget.isExampleMode && (_tutorialStep >= 0 && _tutorialStep <= 1))
-          // _buildTutorialInlineMessage(),
       ],
     );
   }
@@ -1442,10 +1300,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
             } else {
               final item = _bGridChips[i];
               final isSelected = _selectedBGrid.contains(i);
-              final isCurrentSessionChip = _isCurrentSessionChip(
-                'B',
-                item.label,
-              );
               return FilterChip(
                 avatar: Icon(
                   item.icon,
@@ -1485,26 +1339,14 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                 ),
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                onDeleted:
-                    isCurrentSessionChip
-                        ? () => _deleteCustomChip('B', item.label, i)
-                        : null,
-                deleteIcon:
-                    isCurrentSessionChip
-                        ? const Icon(
-                          Icons.close,
-                          size: 18,
-                          color: Colors.redAccent,
-                        )
-                        : null,
+                onDeleted: item.isAdd ? () => _deleteCustomChip('B', item.label, i) : null,
+                deleteIcon: item.isAdd
+                    ? const Icon(Icons.close, size: 18, color: Colors.redAccent)
+                    : null,
               );
             }
           }),
         ),
-        // if (widget.isExampleMode && (_tutorialStep >= 3 && _tutorialStep <= 4))
-          // SizedBox(height: 120),
-        // if (widget.isExampleMode && (_tutorialStep >= 3 && _tutorialStep <= 4))
-          // _buildTutorialInlineMessage(),
       ],
     );
   }
@@ -1520,28 +1362,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
             const SizedBox(height: 8),
-            // if (widget.isExampleMode)
-            //   Container(
-            //     margin: const EdgeInsets.only(bottom: 16),
-            //     padding: const EdgeInsets.symmetric(
-            //       horizontal: 16,
-            //       vertical: 12,
-            //     ),
-            //     decoration: BoxDecoration(
-            //       color: Colors.white.withValues(alpha: 0.95),
-            //       borderRadius: BorderRadius.circular(16),
-            //       boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 8)],
-            //     ),
-            //     child: const Text(
-            //       '현재 C단계는 신체증상, 감정, 행동을 각각 입력하는 단계입니다.\n각 항목을 차례로 진행해 주세요!',
-            //       style: TextStyle(
-            //         color: Colors.indigo,
-            //         fontWeight: FontWeight.bold,
-            //         fontSize: 15,
-            //       ),
-            //       textAlign: TextAlign.center,
-            //     ),
-            //   ),
             _buildCPhysicalChips(),
           ],
         );
@@ -1567,12 +1387,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
             ),
             const SizedBox(height: 8),
             _buildCBehaviorChips(),
-            // if (widget.isExampleMode &&
-            //     (_tutorialStep >= 5 && _tutorialStep <= 6))
-            //   SizedBox(height: 20),
-            // if (widget.isExampleMode &&
-            //     (_tutorialStep >= 5 && _tutorialStep <= 6))
-              // _buildTutorialInlineMessage(),
           ],
         );
       default:
@@ -1601,10 +1415,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
         } else {
           final item = _physicalChips[i];
           final isSelected = _selectedPhysical.contains(i);
-          final isCurrentSessionChip = _isCurrentSessionChip(
-            'C-physical',
-            item.label,
-          );
           return FilterChip(
             avatar: Icon(
               item.icon,
@@ -1644,14 +1454,10 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
             ),
             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            onDeleted:
-                isCurrentSessionChip
-                    ? () => _deleteCustomChip('C-physical', item.label, i)
-                    : null,
-            deleteIcon:
-                isCurrentSessionChip
-                    ? const Icon(Icons.close, size: 18, color: Colors.redAccent)
-                    : null,
+            onDeleted: item.isAdd ? () => _deleteCustomChip('C-physical', item.label, i) : null,
+            deleteIcon: item.isAdd
+                ? const Icon(Icons.close, size: 18, color: Colors.redAccent)
+                : null,
           );
         }
       }),
@@ -1679,10 +1485,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
         } else {
           final item = _emotionChips[i];
           final isSelected = _selectedEmotion.contains(i);
-          final isCurrentSessionChip = _isCurrentSessionChip(
-            'C-emotion',
-            item.label,
-          );
           return FilterChip(
             avatar: Icon(
               item.icon,
@@ -1722,14 +1524,10 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
             ),
             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            onDeleted:
-                isCurrentSessionChip
-                    ? () => _deleteCustomChip('C-emotion', item.label, i)
-                    : null,
-            deleteIcon:
-                isCurrentSessionChip
-                    ? const Icon(Icons.close, size: 18, color: Colors.redAccent)
-                    : null,
+            onDeleted: item.isAdd ? () => _deleteCustomChip('C-emotion', item.label, i) : null,
+            deleteIcon: item.isAdd
+                ? const Icon(Icons.close, size: 18, color: Colors.redAccent)
+                : null,
           );
         }
       }),
@@ -1758,10 +1556,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
         } else {
           final item = _behaviorChips[i];
           final isSelected = _selectedBehavior.contains(i);
-          final isCurrentSessionChip = _isCurrentSessionChip(
-            'C-behavior',
-            item.label,
-          );
           return FilterChip(
             avatar: Icon(
               item.icon,
@@ -1801,14 +1595,10 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
             ),
             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            onDeleted:
-                isCurrentSessionChip
-                    ? () => _deleteCustomChip('C-behavior', item.label, i)
-                    : null,
-            deleteIcon:
-                isCurrentSessionChip
-                    ? const Icon(Icons.close, size: 18, color: Colors.redAccent)
-                    : null,
+            onDeleted: item.isAdd ? () => _deleteCustomChip('C-behavior', item.label, i) : null,
+            deleteIcon: item.isAdd
+                ? const Icon(Icons.close, size: 18, color: Colors.redAccent)
+                : null,
           );
         }
       }),
@@ -1875,37 +1665,10 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                         '(이)라는 행동을 했습니다.',
                         style: TextStyle(color: Colors.black, fontSize: 16),
                       ),
-                  if (_tutorialError != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8.0),
-                      child: Text(
-                        _tutorialError!,
-                        style: TextStyle(color: Colors.red, fontSize: 13),
-                      ),
-                    ),
                   const SizedBox(height: 24),
                   FilledButton(
                     onPressed: () {
                       final value = _addCGridController.text.trim();
-                      // if (widget.isExampleMode && _tutorialStep == 5) {
-                      //   if (value == '자전거를 타지 않았어요') {
-                      //     setState(() {
-                      //       _behaviorChips.insert(
-                      //         _behaviorChips.length - 1,
-                      //         GridItem(icon: Icons.circle, label: value),
-                      //       );
-                      //       _tutorialStep = 6;
-                      //       _tutorialError = null;
-                      //     });
-                      //     _addCGridController.clear();
-                      //     Navigator.pop(context);
-                      //   } else {
-                      //     setState(() {
-                      //       _tutorialError = '예시와 똑같이 입력해보세요!';
-                      //     });
-                      //   }
-                      //   return;
-                      // }
                       if (value.isNotEmpty) {
                         // 중복 체크
                         if (_isDuplicateChip('C-behavior', value)) {
@@ -1915,12 +1678,17 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                         setState(() {
                           _behaviorChips.insert(
                             _behaviorChips.length - 1,
-                            GridItem(icon: Icons.circle, label: value),
+                            GridItem(icon: Icons.circle, label: value, isAdd: true),
                           );
                           // 현재 세션에 추가된 칩으로 추적
                           _addToCurrentSession('C-behavior', value);
                         });
+                        _suspendTextLogging = true;
                         _addCGridController.clear();
+                        _prevText[_addCGridController] = '';
+                        _lastLoggedLen[_addCGridController] = 0;
+                        _lastLoggedText[_addCGridController] = '';
+                        _suspendTextLogging = false;
                         Navigator.pop(context);
                       }
                     },
@@ -2021,13 +1789,31 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
     }
   }
 
-  // Firestore에서 커스텀 칩 삭제 함수
+  // Adjusts index-based selections after a chip is removed
+  void _adjustSelectionAfterRemoval(Set<int> selectedSet, int removedIndex) {
+    if (selectedSet.isEmpty) return;
+    final updated = <int>{};
+    for (final idx in selectedSet) {
+      if (idx == removedIndex) {
+        // drop the removed index
+      } else if (idx > removedIndex) {
+        updated.add(idx - 1);
+      } else {
+        updated.add(idx);
+      }
+    }
+    selectedSet
+      ..clear()
+      ..addAll(updated);
+  }
+
+  // Firestore에서 커스텀 칩 삭제 함수 (모든 칩에 대해 삭제 허용, Firestore에서도 삭제 시도)
   Future<void> _deleteCustomChip(String type, String label, int index) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    // 현재 세션에서 추가된 칩인 경우에만 Firestore에서 삭제
-    if (_isCurrentSessionChip(type, label)) {
+    // Firestore: delete any custom chip doc with matching type+label (regardless of session)
+    try {
       final query = await _chipsRef(user.uid)
           .where('type', isEqualTo: type)
           .where('label', isEqualTo: label)
@@ -2035,30 +1821,38 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
       for (var doc in query.docs) {
         await doc.reference.delete();
       }
+    } catch (e) {
+      debugPrint('칩 삭제 중 Firestore 오류: $e');
     }
 
     setState(() {
       switch (type) {
         case 'A':
           _aGridChips.removeAt(index);
+          _adjustSelectionAfterRemoval(_selectedAGrid, index);
           break;
         case 'B':
           _bGridChips.removeAt(index);
+          _adjustSelectionAfterRemoval(_selectedBGrid, index);
           break;
         case 'C-physical':
           _physicalChips.removeAt(index);
+          _adjustSelectionAfterRemoval(_selectedPhysical, index);
           break;
         case 'C-emotion':
           _emotionChips.removeAt(index);
+          _adjustSelectionAfterRemoval(_selectedEmotion, index);
           break;
         case 'C-behavior':
           _behaviorChips.removeAt(index);
+          _adjustSelectionAfterRemoval(_selectedBehavior, index);
           break;
       }
       // 현재 세션 추적에서도 제거
       _removeFromCurrentSession(type, label);
     });
   }
+  
   Future<void> _saveAbcAndExit() async {
     try {
       final userId = FirebaseAuth.instance.currentUser?.uid;
@@ -2076,11 +1870,12 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
       await firestore.collection('chi_users').doc(userId).set({}, SetOptions(merge: true));
 
       // ABC 모델 데이터 구성 (기본 필드)
-      final c1 = _selectedPhysical.map((i) => _physicalChips[i].label).join(', ');
-      final c2 = _selectedEmotion.map((i) => _emotionChips[i].label).join(', ');
-      final c3 = _selectedBehavior.map((i) => _behaviorChips[i].label).join(', ');
-      final activatingEvent = _selectedAGrid.map((i) => _aGridChips[i].label).join(', ');
-      final belief          = _selectedBGrid.map((i) => _bGridChips[i].label).join(', ');
+      final c1 = _selectedPhysical.map((i) => _physicalChips[i].label).toList();
+      final c2 = _selectedEmotion.map((i) => _emotionChips[i].label).toList();
+      final c3 = _selectedBehavior.map((i) => _behaviorChips[i].label).toList();
+      final activatingEvent = _selectedAGrid.map((i) => _aGridChips[i].label).toList();
+      final belief          = _selectedBGrid.map((i) => _bGridChips[i].label).toList();
+
 
       final baseData = {
         'activatingEvent': activatingEvent,
@@ -2088,7 +1883,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
         'c1_physical'    : c1,
         'c2_emotion'     : c2,
         'c3_behavior'    : c3,
-        'report'         : null,
+        
       };
 
       if (!mounted) return;
@@ -2105,6 +1900,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
             TextButton(
               child: Text(_isEditing ? '수정' : '확인'),
               onPressed: () async {
+                String savedAbcId;
                 if (_isEditing) {
                   // 편집: 기존 문서에 덮어쓰기 (백업은 onEdit에서 수행)
                   final docRef = firestore
@@ -2118,7 +1914,8 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                     'startedAt': widget.startedAt,
                     'completedAt': FieldValue.serverTimestamp(),
                   };
-                  await docRef.set(payload, SetOptions(merge: false));
+                  await docRef.set(payload, SetOptions(merge: true));
+                  savedAbcId = widget.abcId!;
                 } else {
                   // 신규: 시퀀스 ID로 생성
                   final newId = await _nextSequencedDocId(userId, 'abc_models');
@@ -2131,7 +1928,9 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                         ...baseData,
                         'startedAt'  : widget.startedAt,
                         'completedAt': FieldValue.serverTimestamp(),
+                        'report'     : null,   // ✅ report 필드 추가
                       });
+                  savedAbcId = newId;
                 }
 
                 await _saveSelectedChipsToFirestore();
@@ -2166,7 +1965,16 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                 _sessionCompleted = true;
 
                 if (!context.mounted) return;
-                Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => AbcCompleteScreen(
+                      userId: userId, 
+                      abcId: savedAbcId,
+                      fromAbcInput: true,
+                    )
+                  )
+                );
               },
             ),
           ],
@@ -2214,7 +2022,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
         'screen': 'AbcInputScreen_chip',
         'experimentCondition': 'Chip_input',
         'startedAt': widget.startedAt ?? FieldValue.serverTimestamp(),
-        'createdAt': FieldValue.serverTimestamp(),
       });
       _sessionId = newSessionId;
 
@@ -2294,23 +2101,71 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
 
   void _attachTextWatchers() {
     void watch(String field, TextEditingController c) {
+      // Initialize baselines for this controller
       _prevText[c] = c.text;
+      _lastLoggedLen[c] = c.text.length;
+      _lastLoggedText[c] = c.text;
       _debouncers[c]?.cancel();
-      c.addListener(() {
-        final prev = _prevText[c] ?? '';
-        final cur = c.text;
-        final delta = cur.length - prev.length;
-        final deletion = cur.length < prev.length;
-        _prevText[c] = cur;
 
-        _textChanges++;
+      c.addListener(() {
+        // Capture old/new BEFORE any early returns
+        final oldText = _prevText[c] ?? '';
+        final newText = c.text;
+
+        if (_suspendTextLogging) {
+          // Keep baseline in sync while suppressed to avoid large deltas later
+          _prevText[c] = newText;
+          return;
+        }
+
+        // --- Approximate key press counting from text delta (works with soft keyboard & in dialogs) ---
+        if (newText != oldText) {
+          final d = newText.length - oldText.length;
+          final presses = d.abs();
+          if (presses > 0) {
+            _keyPresses += presses;
+          }
+          // Fallback backspace logging when Raw/KeyboardListener won't fire (mobile IME, dialog focus)
+          if (d < 0) {
+            _logEvent('key', {
+              'logicalKey': 'Backspace',
+              'backspace': true,
+              'count': -d,
+            });
+          }
+        }
+
+        // Update instantaneous previous text baseline for per-change tracking
+        _prevText[c] = newText;
+
+        // Debounce to emit a single logical text_change per burst
         _debouncers[c]?.cancel();
         _debouncers[c] = Timer(const Duration(milliseconds: 400), () {
+          final curText = c.text;
+          final curLen = curText.length;
+          final lastLen = _lastLoggedLen[c] ?? curLen;
+          final lastText = _lastLoggedText[c] ?? curText;
+
+          // Guard: ignore focus/composition updates that don't change the string
+          if (curLen == lastLen && curText == lastText) {
+            return;
+          }
+
+          final deltaBatch = curLen - lastLen; // net change since last log
+          final deletionBatch = curLen < lastLen;
+
+          // Update baselines for next burst
+          _lastLoggedLen[c] = curLen;
+          _lastLoggedText[c] = curText;
+
+          // Count only debounced logical changes (not every keystroke)
+          _textChanges++;
+
           _logEvent('text_change', {
             'field': field,
-            'len': cur.length,
-            'delta': delta,
-            'deletion': deletion,
+            'len': curLen,
+            'delta': deltaBatch,
+            'deletion': deletionBatch,
           });
         });
       });

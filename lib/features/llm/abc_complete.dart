@@ -4,17 +4,38 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:gad_app_team/widgets/custom_appbar.dart';
 import 'package:gad_app_team/widgets/aspect_viewport.dart';
 import 'package:gad_app_team/common/constants.dart';
-import 'package:gad_app_team/widgets/navigation_button.dart';
+import 'package:gad_app_team/widgets/primary_action_button.dart';
 
-class AbcCompleteScreen extends StatelessWidget {
+class AbcCompleteScreen extends StatefulWidget {
   final String userId;
   final String abcId;
+  final bool fromAbcInput; // true if routed from abc_input
 
   const AbcCompleteScreen({
     super.key,
     required this.userId,
     required this.abcId,
+    this.fromAbcInput = false,
   });
+
+  @override
+  State<AbcCompleteScreen> createState() => _AbcCompleteScreenState();
+}
+
+class _AbcCompleteScreenState extends State<AbcCompleteScreen> {
+  bool _loadingTimeout = false;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(const Duration(seconds: 5), () {
+      if (mounted) {
+        setState(() {
+          _loadingTimeout = true;
+        });
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,14 +46,25 @@ class AbcCompleteScreen extends StatelessWidget {
         decoration: BoxDecoration(gradient: _bgGradient()),
         child: Scaffold(
           backgroundColor: Colors.transparent,
-          appBar: const CustomAppBar(title: '감정일기 리포트'),
+          appBar: CustomAppBar(
+                title: '감정일기 리포트',
+                onBack: () {
+                  if (widget.fromAbcInput) {
+                    // 입력 → 완료 흐름에서는 홈으로 이동
+                    Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
+                  } else {
+                    // 목록에서 들어왔을 때는 단순 뒤로가기
+                    Navigator.pop(context);
+                  }
+                },
+              ),
           body: SafeArea(
             child: FutureBuilder<DocumentSnapshot>(
               future: FirebaseFirestore.instance
                   .collection('chi_users')
-                  .doc(userId)
+                  .doc(widget.userId)
                   .collection('abc_models')
-                  .doc(abcId)
+                  .doc(widget.abcId)
                   .get(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -43,35 +75,107 @@ class AbcCompleteScreen extends StatelessWidget {
                 }
 
                 final data = snapshot.data!.data() as Map<String, dynamic>;
+                final report = data['report'];
 
-                return SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(18, 18, 18, 100),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _AbcCompact(
-                        activatingEvent: data['activatingEvent'] ?? '',
-                        belief: data['belief'] ?? '',
-                        c1Physical: data['c1_physical'] ?? '',
-                        c2Emotion: data['c2_emotion'] ?? '',
-                        c3Behavior: data['c3_behavior'] ?? '',
+                // ✅ report 생성중
+                if (report == null) {
+                  if (_loadingTimeout) {
+                    // 5초 넘으면 예시 메시지 보여주기
+                    return Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(18),
+                        child: Column(
+                          children: [
+                            _AbcCompact(
+                              activatingEvent: data['activatingEvent'] ?? '',
+                              belief: data['belief'] ?? '',
+                              c1Physical: data['c1_physical'] ?? '',
+                              c2Emotion: data['c2_emotion'] ?? '',
+                              c3Behavior: data['c3_behavior'] ?? '',
+                            ),
+                            const SizedBox(height: 18),
+                            Text(
+                              "AI가 리포트를 생성하는 데 시간이 오래 걸리고 있습니다.\n\n"
+                              "생성된 리포트는 일기 목록에서 확인할 수 있습니다.",
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.black54,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ]
+                        )
                       ),
-                      const SizedBox(height: 18),
-                      _ReportCard(report: data['report'] ?? '리포트가 없습니다.'),
-                    ],
-                  ),
+                    );
+                  }
+                  return const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 16),
+                        Text(
+                          "AI가 리포트를 생성 중입니다...\n잠시만 기다려주세요.",
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                // ✅ report가 실패 문구일 경우
+                if (report is String && report.toLowerCase().contains("실패")) {
+                  return const Center(
+                    child: Text(
+                      "리포트 생성에 실패했습니다.\n잠시 후 다시 시도해주세요.",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                          color: Colors.red, fontWeight: FontWeight.bold),
+                    ),
+                  );
+                }
+
+                // ✅ 정상적으로 리포트 생성됨 — 버튼을 동일 스크롤 안에서 자연스럽게 연결
+                final bottomPad = 18.0 + MediaQuery.of(context).viewPadding.bottom;
+                return SingleChildScrollView(
+                  
+                        padding: EdgeInsets.fromLTRB(18, 18, 18, bottomPad),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (widget.fromAbcInput) ...[
+                              _AbcCompact(
+                                activatingEvent: data['activatingEvent'] ?? '',
+                                belief: data['belief'] ?? '',
+                                c1Physical: data['c1_physical'] ?? '',
+                                c2Emotion: data['c2_emotion'] ?? '',
+                                c3Behavior: data['c3_behavior'] ?? '',
+                              ),
+                              const SizedBox(height: 18),
+                            ],
+                            _ReportCard(
+                              report: data['report'] ?? '리포트가 없습니다.',
+                              alwaysExpanded: !widget.fromAbcInput,
+                            ),
+                            
+                            if (widget.fromAbcInput) ...[
+                              const SizedBox(height: 18),
+                              SizedBox(
+                                width: double.infinity,
+                                height: 56,
+                                child: PrimaryActionButton(
+                                  onPressed: () {
+                                    Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
+                                  },
+                                  text: '홈으로',
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
                 );
               },
-            ),
-          ),
-          bottomNavigationBar: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-            child: NavigationButtons(
-              leftLabel: '돌아가기',
-              rightLabel: '홈으로',
-              onBack: () => Navigator.pop(context),
-              onNext: () => Navigator.pushNamedAndRemoveUntil(
-                  context, '/home', (_) => false),
             ),
           ),
         ),
@@ -82,11 +186,11 @@ class AbcCompleteScreen extends StatelessWidget {
 
 // ---------------- ABC Compact ----------------
 class _AbcCompact extends StatelessWidget {
-  final String activatingEvent;
-  final String belief;
-  final String c1Physical;
-  final String c2Emotion;
-  final String c3Behavior;
+  final dynamic activatingEvent;
+  final dynamic belief;
+  final dynamic c1Physical;
+  final dynamic c2Emotion;
+  final dynamic c3Behavior;
 
   const _AbcCompact({
     required this.activatingEvent,
@@ -96,18 +200,27 @@ class _AbcCompact extends StatelessWidget {
     required this.c3Behavior,
   });
 
-  List<String> _splitChips(String value) {
-    return value
-        .split(',')
-        .map((e) => e.trim())
-        .where((e) => e.isNotEmpty)
-        .toList();
+  List<String> _splitChips(dynamic value) {
+    if (value == null) return [];
+
+    if (value is String) {
+      return [value.trim()];
+    }
+
+    if (value is List) {
+      return value
+          .map((e) => e.toString().trim())
+          .where((e) => e.isNotEmpty)
+          .toList();
+    }
+
+    return [];
   }
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      elevation: 5,
+      elevation: 1,
       color: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       child: Padding(
@@ -298,7 +411,8 @@ class _AbcCompact extends StatelessWidget {
 // ---------------- Report Card ----------------
 class _ReportCard extends StatefulWidget {
   final String report;
-  const _ReportCard({required this.report});
+  final bool alwaysExpanded;
+  const _ReportCard({required this.report, this.alwaysExpanded = false});
 
   @override
   State<_ReportCard> createState() => _ReportCardState();
@@ -311,6 +425,7 @@ class _ReportCardState extends State<_ReportCard>
   @override
   Widget build(BuildContext context) {
     final primary = AppColors.indigo.shade700;
+    final bool expanded = widget.alwaysExpanded ? true : _expanded;
 
     return AnimatedSize(
       duration: const Duration(milliseconds: 220),
@@ -360,18 +475,19 @@ class _ReportCardState extends State<_ReportCard>
                     ),
                   ),
                 ),
-                TextButton(
-                  onPressed: () => setState(() => _expanded = !_expanded),
-                  style: TextButton.styleFrom(
-                    foregroundColor: primary,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 8),
+                if (!widget.alwaysExpanded)
+                  TextButton(
+                    onPressed: () => setState(() => _expanded = !_expanded),
+                    style: TextButton.styleFrom(
+                      foregroundColor: primary,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 8),
+                    ),
+                    child: Text(
+                      _expanded ? '접기' : '더보기',
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
                   ),
-                  child: Text(
-                    _expanded ? '접기' : '더보기',
-                    style: const TextStyle(fontWeight: FontWeight.w800),
-                  ),
-                ),
               ],
             ),
             const SizedBox(height: 12),
@@ -400,7 +516,7 @@ class _ReportCardState extends State<_ReportCard>
                   fontFamily: 'Pretendard',
                 ),
               ),
-              crossFadeState: _expanded
+              crossFadeState: expanded
                   ? CrossFadeState.showSecond
                   : CrossFadeState.showFirst,
               duration: const Duration(milliseconds: 220),

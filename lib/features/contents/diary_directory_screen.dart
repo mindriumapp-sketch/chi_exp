@@ -3,18 +3,18 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:gad_app_team/common/constants.dart';
 import 'package:gad_app_team/features/llm/abc_complete.dart';
-import 'package:gad_app_team/widgets/card_container.dart';
 import 'package:intl/intl.dart';
 import 'package:gad_app_team/features/2nd_treatment/abc_input_screen_chip.dart';
 import 'package:gad_app_team/features/2nd_treatment/abc_input_screen_text.dart';
 
+
 class AbcModel {
   final String id;
-  final String activatingEvent;
-  final String belief;
-  final String cPhysical;
-  final String cEmotion;
-  final String cBehavior;
+  final dynamic activatingEvent;
+  final dynamic belief;
+  final dynamic cPhysical;
+  final dynamic cEmotion;
+  final dynamic cBehavior;
   final DateTime? completedAt;
   final DateTime? startedAt;
   final DateTime? updatedAt;
@@ -33,66 +33,71 @@ class AbcModel {
 
   factory AbcModel.fromDoc(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
-    DateTime? completedAt;
-    final rawCompletedAt = (doc.data() as Map<String, dynamic>)['completedAt'];
-    if (rawCompletedAt is Timestamp) {
-      completedAt = rawCompletedAt.toDate();
-    } else if (rawCompletedAt is String) {
-      completedAt = DateTime.tryParse(rawCompletedAt);
+
+    dynamic normalizeField(dynamic v) {
+      if (v == null) return '-';
+      if (v is String) return v;
+      if (v is List) return v.map((e) => e.toString()).toList();
+      return v.toString();
     }
-    DateTime? startedAt;
-    final rawStartedAt = (doc.data() as Map<String, dynamic>)['startedAt'];
-    if (rawStartedAt is Timestamp) {
-      startedAt = rawStartedAt.toDate();
-    } else if (rawStartedAt is String) {
-      startedAt = DateTime.tryParse(rawStartedAt);
+
+    DateTime? parseDate(dynamic raw) {
+      if (raw is Timestamp) return raw.toDate();
+      if (raw is String) return DateTime.tryParse(raw);
+      return null;
     }
-    DateTime? updatedAt;
-    final rawUpdatedAt = (doc.data() as Map<String, dynamic>)['updatedAt'];
-    if (rawUpdatedAt is Timestamp) {
-      updatedAt = rawUpdatedAt.toDate();
-    } else if (rawUpdatedAt is String) {
-      updatedAt = DateTime.tryParse(rawUpdatedAt);
-    }
+
     return AbcModel(
       id: doc.id,
-      activatingEvent: data['activatingEvent'] as String? ?? '-',
-      belief: data['belief'] as String? ?? '-',
-      cPhysical: data['c1_physical'] as String? ?? '-',
-      cEmotion: data['c2_emotion'] as String? ?? '-',
-      cBehavior: data['c3_behavior'] as String? ?? '-',
-      completedAt: completedAt,
-      startedAt: startedAt,
-      updatedAt: updatedAt,
+      activatingEvent: normalizeField(data['activatingEvent']),
+      belief: normalizeField(data['belief']),
+      cPhysical: normalizeField(data['c1_physical']),
+      cEmotion: normalizeField(data['c2_emotion']),
+      cBehavior: normalizeField(data['c3_behavior']),
+      completedAt: parseDate(data['completedAt']),
+      startedAt: parseDate(data['startedAt']),
+      updatedAt: parseDate(data['updatedAt']),
     );
   }
 }
 
-/// 공통 ABC 목록 위젯 – 편집 모드 유무만 넘겨주면 재사용 가능
-class AbcStreamList extends StatelessWidget {
+class AbcStreamList extends StatefulWidget {
   final String uid;
+  final DateTimeRange? selectedRange;
+  final VoidCallback? onPickDateRange;
 
-  const AbcStreamList({
-    super.key,
-    required this.uid,
-  });
+  const AbcStreamList({super.key, required this.uid, this.selectedRange, this.onPickDateRange});
+
+  @override
+  State<AbcStreamList> createState() => _AbcStreamListState();
+}
+
+class _AbcStreamListState extends State<AbcStreamList> {
+  Stream<QuerySnapshot> _getStream() {
+    final base = FirebaseFirestore.instance
+        .collection('chi_users')
+        .doc(widget.uid)
+        .collection('abc_models');
+
+    if (widget.selectedRange != null) {
+      return base
+          .where('completedAt', isGreaterThanOrEqualTo: widget.selectedRange!.start)
+          .where('completedAt', isLessThanOrEqualTo: widget.selectedRange!.end)
+          .snapshots();
+    }
+    return base.snapshots();
+  }
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('chi_users')
-          .doc(uid)
-          .collection('abc_models')
-          .snapshots(),
+      stream: _getStream(),
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
         final docs = snap.data?.docs ?? [];
-        if (docs.isEmpty) {
-          return const Center(child: Text('저장된 일기가 없습니다'));
-        }
+
         final items = docs.map(AbcModel.fromDoc).toList();
         int cmp(DateTime? a, DateTime? b) {
           final da = a ?? DateTime.fromMillisecondsSinceEpoch(0);
@@ -111,26 +116,52 @@ class AbcStreamList extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                '총 $total개의 일기',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold
-                )
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              child: Row(
+                children: [
+                  // 좌측: 일기 개수
+                  Expanded(
+                    child: Text(
+                      '일기 $total개',
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  // 우측: 날짜 필터 라벨 + 선택 버튼
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        widget.selectedRange == null
+                            ? '날짜 필터: 전체'
+                            : '날짜 필터: ${DateFormat('yyyy-MM-dd').format(widget.selectedRange!.start)} ~ ${DateFormat('yyyy-MM-dd').format(widget.selectedRange!.end)}',
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                      ),
+                      const SizedBox(width: 4),
+                      IconButton(
+                        tooltip: '날짜 범위 선택',
+                        icon: const Icon(Icons.calendar_today, size: 20),
+                        onPressed: widget.onPickDateRange,
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
             Expanded(
-              child: ListView.separated(
-                padding: const EdgeInsets.fromLTRB(
-                    AppSizes.padding, 0, AppSizes.padding, AppSizes.padding),
-                itemCount: items.length,
-                itemBuilder: (ctx, i) {
-                  final model = items[i];
-                  return _AbcCard(model: model);
-                },
-                separatorBuilder: (ctx, i) => const SizedBox(height: 16),
-              ),
+              child: items.isEmpty
+                  ? const Center(child: Text('저장된 일기가 없습니다'))
+                  : ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(
+                          AppSizes.padding, 0, AppSizes.padding, AppSizes.padding),
+                      itemCount: items.length,
+                      itemBuilder: (ctx, i) {
+                        final model = items[i];
+                        return _AbcCard(model: model, index: i + 1);
+                      },
+                      separatorBuilder: (ctx, i) => const SizedBox(height: 8),
+                    ),
             ),
           ],
         );
@@ -141,13 +172,15 @@ class AbcStreamList extends StatelessWidget {
 
 class _AbcCard extends StatefulWidget {
   final AbcModel model;
-  const _AbcCard({required this.model});
+  final int index;
+  const _AbcCard({required this.model, required this.index});
 
   @override
   State<_AbcCard> createState() => _AbcCardState();
 }
 
 class _AbcCardState extends State<_AbcCard> {
+  bool _expanded = false;
 
   Future<void> _onEdit(AbcModel m) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
@@ -159,7 +192,7 @@ class _AbcCardState extends State<_AbcCard> {
     final backupRef = userDoc.collection('abc_backup').doc(m.id);
     final startedAt = DateTime.now();
 
-    // 1) 기존 일기 백업 (삭제는 하지 않음)
+    // 기존 데이터 백업
     try {
       final snap = await docRef.get();
       final Map<String, dynamic>? data = snap.data();
@@ -168,13 +201,7 @@ class _AbcCardState extends State<_AbcCard> {
         'backupAt': FieldValue.serverTimestamp(),
       };
       await backupRef.set(backup, SetOptions(merge: true));
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('오류가 발생했습니다: $e')),
-        );
-      }
-    }
+    } catch (_) {}
 
     // 2) chi_users 코드 조회
     String? code;
@@ -221,10 +248,7 @@ class _AbcCardState extends State<_AbcCard> {
         title: const Text('삭제 확인'),
         content: const Text('선택한 일기를 삭제할까요? 이 작업은 되돌릴 수 없습니다.'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('취소'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('취소')),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('삭제', style: TextStyle(color: Colors.red)),
@@ -243,12 +267,7 @@ class _AbcCardState extends State<_AbcCard> {
     try {
       final snap = await docRef.get();
       final Map<String, dynamic>? data = snap.data();
-
-      // 백업 데이터: 기존 필드 + 메타 정보
-      final copy = <String, dynamic>{
-        ...?data,
-        'deletedAt': FieldValue.serverTimestamp(),
-      };
+      final copy = <String, dynamic>{...?data, 'deletedAt': FieldValue.serverTimestamp()};
 
       final batch = fs.batch();
       batch.set(backupRef, copy, SetOptions(merge: true));
@@ -256,15 +275,13 @@ class _AbcCardState extends State<_AbcCard> {
       await batch.commit();
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('일기를 삭제했습니다.')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('일기를 삭제했습니다.')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('삭제 중 오류가 발생했습니다: $e')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('삭제 중 오류가 발생했습니다: $e')));
       }
     }
   }
@@ -318,7 +335,7 @@ class _AbcCardState extends State<_AbcCard> {
       ],
       // Custom-styled trigger
       child: Container(
-        padding: const EdgeInsets.fromLTRB(0,12,8,0),
+        padding: const EdgeInsets.fromLTRB(0,0,0,0),
         child: const Icon(Icons.more_vert, size: 20, color: Colors.black),
       ),
     );
@@ -326,123 +343,258 @@ class _AbcCardState extends State<_AbcCard> {
 
   @override
   Widget build(BuildContext context) {
-    final title = widget.model.completedAt != null
-        ? DateFormat('yyyy-MM-dd HH:mm').format(widget.model.completedAt!)
+    final m = widget.model;
+
+    final titleDate = m.completedAt != null
+        ? DateFormat('yyyy-MM-dd HH:mm').format(m.completedAt!)
         : '작성 날짜 없음';
 
-    return Stack(
+    String situationText = '-';
+    if (m.activatingEvent is List && (m.activatingEvent as List).isNotEmpty) {
+      situationText = (m.activatingEvent as List).first.toString();
+    } else if (m.activatingEvent is String) {
+      situationText = m.activatingEvent;
+    }
+
+    return Column(
       children: [
-        CardContainer(
-          title: title,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withValues(alpha: 0.15),
+                blurRadius: 6,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Row(
             children: [
-              const Divider(height: 1, thickness: 1),
-              const SizedBox(height: 12),
-              _buildExpandedBody(),
+              Text(
+                "${widget.index}",
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: Colors.indigo,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      situationText,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      titleDate,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextButton(
+                    onPressed: () => setState(() => _expanded = !_expanded),
+                    child: Text(_expanded ? '접기 ▲' : '펼치기 ▼'),
+                  ),
+                  _moreMenuButton(m),
+                ],
+              ),
             ],
           ),
         ),
-        // 우측 상단 오버레이 (날짜 타이틀 영역 근처)
-        Positioned(
-          top: 4,
-          right: 8,
-          child: _moreMenuButton(widget.model),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildExpandedBody() {
-    final m = widget.model;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _kv('A(상황)', m.activatingEvent),
-        const SizedBox(height: 16),
-        _kv('B(생각)', m.belief),
-        const SizedBox(height: 16),
-        _kvC('C(결과)', m.cPhysical, m.cEmotion, m.cBehavior),
-        const SizedBox(height: 20),
-        // ====== 리포트 보기 버튼 추가 ======
-        Align(
-          alignment: Alignment.centerRight,
-          child: ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.indigo,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              elevation: 1,
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+        if (_expanded)
+          Container(
+            margin: const EdgeInsets.only(top: 8, left: 4, right: 4),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withValues(alpha: 0.05),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
-            icon: const Icon(Icons.analytics, color: Colors.white, size: 20),
-            label: const Text(
-              '리포트 보기',
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-            ),
-            onPressed: () {
-              final user = FirebaseAuth.instance.currentUser;
-              final userId = user?.uid; // 현재 로그인한 사용자
-              final abcId = widget.model.id; // 또는 doc.id, 각 일기 문서의 id
-
-              if (userId != null) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => AbcCompleteScreen(
-                      userId: userId,
-                      abcId: abcId,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _sectionBox('A (상황)', m.activatingEvent, Icons.event_note),
+                const SizedBox(height: 16),
+                _sectionBox('B (생각)', m.belief, Icons.psychology),
+                const SizedBox(height: 16),
+                _sectionCBox(m),
+                const SizedBox(height: 20),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.indigo,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     ),
+                    icon: const Icon(Icons.analytics, color: Colors.white, size: 20),
+                    label: const Text('리포트 보기',
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    onPressed: () {
+                      final userId = FirebaseAuth.instance.currentUser?.uid;
+                      if (userId != null) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => AbcCompleteScreen(userId: userId, abcId: m.id),
+                          ),
+                        );
+                      }
+                    },
                   ),
-                );
-              }
-            },
+                ),
+              ],
+            ),
           ),
-        ),
       ],
     );
   }
 
-  Widget _kv(String label, String value) {
-    return Column(
+  // 🔹 헬퍼 위젯들
+  Widget _sectionBox(String title, dynamic value, IconData icon) {
+  return Container(
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: Colors.indigo.shade50,
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          textAlign: TextAlign.start,
-          softWrap: true,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        Row(
+          children: [
+            Icon(icon, color: AppColors.indigo, size: 20),
+            const SizedBox(width: 6),
+            Text(title,
+                style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.indigo)),
+          ],
         ),
-        const SizedBox(height: 4),
-        Text(
-          value.isNotEmpty ? value : '-',
-          textAlign: TextAlign.start,
-          softWrap: true,
-        ),
+        const SizedBox(height: 8),
+        if (value is String)
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [_chipBox(value)],
+          )
+        else if (value is List)
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: value.map<Widget>((chip) => _chipBox(chip)).toList(),
+          )
+        else
+          const Text('-'),
       ],
+    ),
+  );
+}
+
+Widget _sectionCBox(AbcModel m) {
+  Widget render(String label, dynamic v, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8, bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: AppColors.indigo, size: 18),
+              const SizedBox(width: 4),
+              Text(label,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      color: AppColors.indigo)),
+            ],
+          ),
+          const SizedBox(height: 6),
+          if (v is String)
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [_chipBox(v)],
+            )
+          else if (v is List)
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: v.map<Widget>((chip) => _chipBox(chip)).toList(),
+            )
+          else
+            const Text('-'),
+        ],
+      ),
     );
   }
 
-  Widget _kvC(String label, String cPhysical, String cEmotion, String cBehavior) {
-    String safe(String s) => s.isNotEmpty ? s : '-';
-    return Column(
+  return Container(
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: Colors.indigo.shade50,  // ✅ A, B와 동일
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          textAlign: TextAlign.start,
-          softWrap: true,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        Row(
+          children: const [
+            Icon(Icons.summarize, color: AppColors.indigo, size: 20),
+            SizedBox(width: 6),
+            Text("C (결과)",
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.indigo)),
+          ],
         ),
-        const SizedBox(height: 4),
-        Text('신체 증상', style: TextStyle(fontWeight: FontWeight.bold),),
-        Text(safe(cPhysical), textAlign: TextAlign.start, softWrap: true),
-        const SizedBox(height: 8),
-        Text('감정', style: TextStyle(fontWeight: FontWeight.bold),),
-        Text(safe(cEmotion), textAlign: TextAlign.start, softWrap: true),
-        const SizedBox(height: 8),
-        Text('행동', style: TextStyle(fontWeight: FontWeight.bold),),
-        Text(safe(cBehavior), textAlign: TextAlign.start, softWrap: true),
+        render("신체 증상", m.cPhysical, Icons.favorite),
+        render("감정", m.cEmotion, Icons.mood),
+        render("행동", m.cBehavior, Icons.directions_walk),
       ],
+    ),
+  );
+}
+
+
+
+  Widget _chipBox(String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+      decoration: BoxDecoration(
+        color: Colors.indigo.shade50,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.indigo.shade200),
+      ),
+      child: Text(text, style: const TextStyle(fontSize: 13, color: Colors.indigo)),
     );
   }
 }
@@ -452,34 +604,50 @@ class NotificationDirectoryScreen extends StatefulWidget {
   const NotificationDirectoryScreen({super.key});
 
   @override
-  State<NotificationDirectoryScreen> createState() =>
-      _NotificationDirectoryScreenState();
+  State<NotificationDirectoryScreen> createState() => _NotificationDirectoryScreenState();
 }
 
-class _NotificationDirectoryScreenState
-    extends State<NotificationDirectoryScreen> {
+class _NotificationDirectoryScreenState extends State<NotificationDirectoryScreen> {
+  DateTimeRange? _selectedRange;
+
+  Future<void> _pickDateRange() async {
+    final now = DateTime.now();
+    final initialRange = DateTimeRange(
+      start: now.subtract(const Duration(days: 7)),
+      end: now,
+    );
+
+    final picked = await showDateRangePicker(
+      barrierColor: Colors.white,
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+      initialDateRange: _selectedRange ?? initialRange,
+    );
+
+    if (picked != null) {
+      setState(() {
+        _selectedRange = picked;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) {
-      return const Scaffold(
-        body: Center(child: Text('로그인이 필요합니다')),
-      );
+      return const Scaffold(body: Center(child: Text('로그인이 필요합니다')));
     }
     return Scaffold(
-      backgroundColor: Colors.grey.shade100,
-      body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: AbcStreamList(
-                uid: uid,
-              ),
+          backgroundColor: Colors.grey.shade100,
+          body: SafeArea(
+            child: AbcStreamList(
+              uid: uid,
+              selectedRange: _selectedRange,
+              onPickDateRange: _pickDateRange,
             ),
-          ],
-        ),
-      ),
-    );
+          ),
+        );
+
   }
 }
