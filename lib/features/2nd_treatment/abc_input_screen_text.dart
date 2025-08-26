@@ -836,6 +836,9 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
         'status': 'abandoned',
         'screen': 'AbcInputScreen_text/${_currentStepKey()}',
         'endedAt': FieldValue.serverTimestamp(),
+        'durationMs': widget.startedAt != null
+            ? DateTime.now().millisecondsSinceEpoch - widget.startedAt!.millisecondsSinceEpoch
+            : null,        
         'reason': reason,
         'keyPresses': _keyPresses,
         'touches': _touches,
