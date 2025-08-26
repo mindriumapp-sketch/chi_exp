@@ -7,7 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:gad_app_team/widgets/aspect_viewport.dart';
-import 'package:gad_app_team/features/llm/abc_complete.dart';
+// import 'package:gad_app_team/features/llm/abc_complete.dart';
 
 
 class AbcInputTextScreen extends StatefulWidget {
@@ -582,7 +582,7 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
             TextButton(
               child: Text('확인'),
               onPressed: () async {
-                String savedAbcId;
+                // String savedAbcId;
                 if (_isEditing) {
                   // 편집: 기존 문서 덮어쓰기 (onEdit에서 백업 완료된 상태)
                   final docRef = firestore
@@ -599,7 +599,7 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
 
                   // merge: true 로 기존 필드(예: completedAt) 보존
                   await docRef.set(payload, SetOptions(merge: true));
-                  savedAbcId = widget.abcId!;
+                  // savedAbcId = widget.abcId!;
                 } else {
                   // 신규: 시퀀스 ID 생성 후 저장
                   final newModelId = await _nextSequencedDocId(userId, 'abc_models');
@@ -613,7 +613,7 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
                         'startedAt'  : widget.startedAt,
                         'completedAt': FieldValue.serverTimestamp(),
                       });
-                  savedAbcId = newModelId;
+                  // savedAbcId = newModelId;
                 }
 
                 // 세션 완료 처리
@@ -646,16 +646,17 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
                 _sessionCompleted = true;
 
                 if (!context.mounted) return;
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => AbcCompleteScreen(
-                      userId: userId,
-                      abcId: savedAbcId,
-                      fromAbcInput: true,
-                    )
-                  )
-                );
+                // Navigator.push(
+                //   context,
+                //   MaterialPageRoute(
+                //     builder: (_) => AbcCompleteScreen(
+                //       userId: userId,
+                //       abcId: savedAbcId,
+                //       fromAbcInput: true,
+                //     )
+                //   )
+                // );
+                Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
               },
             ),
           ],
