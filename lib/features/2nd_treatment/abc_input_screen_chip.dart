@@ -163,7 +163,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
   final Set<int> _selectedAGrid = {};
 
   final List<GridItem> _bGridChips = [
-    GridItem(label: '넘어질까봐 두려움'),
+    GridItem(label: '넘어질 것 같음'),
     GridItem(label: '+ 추가', isAdd: true),
   ];
   final Set<int> _selectedBGrid = {};
@@ -533,11 +533,11 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'A. 오늘 있었던 기억에 남는 일은 무엇인가요?',
+                    'A. 상황',
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: 20,
                       color: Colors.indigo,
-                      fontWeight: FontWeight.w500,
+                      fontWeight: FontWeight.bold,
                     ),
                     textAlign: TextAlign.center,
                     maxLines: 1,
@@ -641,11 +641,11 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'B. 그 상황에서 어떤 생각이 떠올랐나요?',
+                    'B. 생각',
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: 20,
                       color: Colors.indigo,
-                      fontWeight: FontWeight.w500,
+                      fontWeight: FontWeight.bold,
                     ),
                     textAlign: TextAlign.center,
                     maxLines: 1,
@@ -748,11 +748,11 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'C-1. 그때 몸에서 어떤 변화가 있었나요?',
+                    'C-1. 신체 증상',
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: 20,
                       color: Colors.indigo,
-                      fontWeight: FontWeight.w500,
+                      fontWeight: FontWeight.bold,
                     ),
                     textAlign: TextAlign.center,
                     maxLines: 1,
@@ -856,11 +856,11 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'C-2. 그 순간 어떤 감정을 느꼈나요?',
+                    'C-2. 감정',
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: 20,
                       color: Colors.indigo,
-                      fontWeight: FontWeight.w500,
+                      fontWeight: FontWeight.bold,
                     ),
                     textAlign: TextAlign.center,
                     maxLines: 1,
@@ -1164,7 +1164,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'A. 오늘 있었던 기억에 남는 일은 무엇인가요?',
+          'A. 오늘 있었던 기억에 남는 일은 무엇인가요?\n     한 가지만 작성해 주세요.',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
         const SizedBox(height: 8),
@@ -1184,7 +1184,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                     ),
                     backgroundColor: AppColors.indigo50,
                     side: BorderSide(color: AppColors.indigo.shade100, width: 1),
-                    onPressed:_addAKeyword,
+                    onPressed: _addAKeyword,
                     // onPressed: widget.isExampleMode ? null : _addAKeyword,
                     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     padding: const EdgeInsets.symmetric(
@@ -1206,15 +1206,11 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                   ),
                 ),
                 selected: isSelected,
-                onSelected: (selected) {
+                onSelected: (_) {
                   setState(() {
-                    if (isSelected) {
-                      _selectedAGrid.remove(i);
-                    } else {
-                      _selectedAGrid
-                        ..clear()
-                        ..add(i);
-                    }
+                    isSelected
+                        ? _selectedAGrid.remove(i)
+                        : _selectedAGrid.add(i);
                     if (!isSelected && item.isAdd) {
                       _bumpCustomChipCount('A', item.label);
                     }
@@ -1591,11 +1587,11 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'C-3. 그래서 어떤 행동을 했나요?',
+                    'C-3. 행동',
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: 20,
                       color: Colors.indigo,
-                      fontWeight: FontWeight.w500,
+                      fontWeight: FontWeight.bold,
                     ),
                     textAlign: TextAlign.center,
                     maxLines: 1,
@@ -1866,7 +1862,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
               onPressed: () => Navigator.pop(context),
             ),
             TextButton(
-              child: Text(_isEditing ? '수정' : '확인'),
+              child: Text('확인'),
               onPressed: () async {
                 String savedAbcId;
                 if (_isEditing) {

@@ -45,7 +45,7 @@ class _AbcCompleteScreenState extends State<AbcCompleteScreen> {
       child: Container(
         decoration: BoxDecoration(gradient: _bgGradient()),
         child: Scaffold(
-          backgroundColor: Colors.transparent,
+          backgroundColor: Colors.grey.shade100,
           appBar: CustomAppBar(
                 title: '감정일기 리포트',
                 onBack: () {
@@ -217,7 +217,7 @@ class _AbcCompact extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      elevation: 0,
+      elevation: 1,
       color: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       child: Padding(
@@ -299,7 +299,7 @@ class _AbcCompact extends StatelessWidget {
                       Row(
                         children: [
                           const SizedBox(width: 4),
-                          Text('신체',
+                          Text('신체 증상',
                               style: TextStyle(
                                   color: Colors.indigo,
                                   fontWeight: FontWeight.w700,
@@ -489,22 +489,16 @@ class _ReportCardState extends State<_ReportCard>
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.left,
                 style: const TextStyle(
-                  color: Colors.black87,
-                  fontSize: 17,
-                  height: 1.7,
-                  fontWeight: FontWeight.w700,
-                  fontFamily: 'Pretendard',
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold
                 ),
               ),
               secondChild: Text(
                 widget.report,
                 textAlign: TextAlign.left,
                 style: const TextStyle(
-                  color: Colors.black87,
-                  fontSize: 17,
-                  height: 1.8,
-                  fontWeight: FontWeight.w700,
-                  fontFamily: 'Pretendard',
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold
                 ),
               ),
               crossFadeState: expanded

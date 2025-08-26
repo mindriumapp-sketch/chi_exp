@@ -511,7 +511,7 @@ class _AbcCardState extends State<_AbcCard> {
                 children: [
                   SizedBox(width: 4),
                   Text(
-                    '신체',
+                    '신체 증상',
                     style: TextStyle(
                       color: Colors.indigo,
                       fontWeight: FontWeight.w700,
@@ -719,14 +719,14 @@ class _NotificationDirectoryScreenState extends State<NotificationDirectoryScree
   Future<void> _pickDateRange() async {
     final now = DateTime.now();
     final initialRange = DateTimeRange(
-      start: now.subtract(const Duration(days: 7)),
+      start: now.subtract(const Duration(days: 10)),
       end: now,
     );
 
     final picked = await showDateRangePicker(
       context: context,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2100),
+      firstDate: now.subtract(const Duration(days: 10)),
+      lastDate: now,
       initialDateRange: _selectedRange ?? initialRange,
       helpText: '기간 선택',
       cancelText: '취소',

@@ -7,6 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:gad_app_team/widgets/aspect_viewport.dart';
+import 'package:gad_app_team/features/llm/abc_complete.dart';
 
 
 class AbcInputTextScreen extends StatefulWidget {
@@ -426,13 +427,13 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'A. 오늘 있었던 기억에 남는 일은 무엇인가요?',
+          'A. 오늘 있었던 기억에 남는 일은 무엇인가요?\n     한 가지만 작성해 주세요.',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
         const SizedBox(height: 16),
         TextField(
           controller: _aTextController,
-          maxLines: 12,
+          maxLines: 8,
           decoration: InputDecoration(
             hintText: '예: 자전거 타기',
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -455,9 +456,9 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
         const SizedBox(height: 16),
         TextField(
           controller: _bTextController,
-          maxLines: 12,
+          maxLines: 8,
           decoration: InputDecoration(
-            hintText: '예: 넘어질까봐 두려움',
+            hintText: '예: 넘어질 것 같음',
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             filled: true,
             fillColor: Colors.white,
@@ -480,7 +481,7 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
             const SizedBox(height: 16),
             TextField(
               controller: _c1TextController,
-              maxLines: 12,
+              maxLines: 8,
               decoration: InputDecoration(
                 hintText: '예: 가슴 두근거림',
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -501,7 +502,7 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
             const SizedBox(height: 16),
             TextField(
               controller: _c2TextController,
-              maxLines: 12,
+              maxLines: 8,
               decoration: InputDecoration(
                 hintText: '예: 두려움',
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -522,7 +523,7 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
             const SizedBox(height: 16),
             TextField(
               controller: _c3TextController,
-              maxLines: 12,
+              maxLines: 8,
               decoration: InputDecoration(
                 hintText: '예: 자전거 끌고가기',
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -579,8 +580,9 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
               onPressed: () => Navigator.pop(context),
             ),
             TextButton(
-              child: Text(_isEditing ? '수정' : '확인'),
+              child: Text('확인'),
               onPressed: () async {
+                String savedAbcId;
                 if (_isEditing) {
                   // 편집: 기존 문서 덮어쓰기 (onEdit에서 백업 완료된 상태)
                   final docRef = firestore
@@ -597,6 +599,7 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
 
                   // merge: true 로 기존 필드(예: completedAt) 보존
                   await docRef.set(payload, SetOptions(merge: true));
+                  savedAbcId = widget.abcId!;
                 } else {
                   // 신규: 시퀀스 ID 생성 후 저장
                   final newModelId = await _nextSequencedDocId(userId, 'abc_models');
@@ -610,6 +613,7 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
                         'startedAt'  : widget.startedAt,
                         'completedAt': FieldValue.serverTimestamp(),
                       });
+                  savedAbcId = newModelId;
                 }
 
                 // 세션 완료 처리
@@ -642,7 +646,16 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
                 _sessionCompleted = true;
 
                 if (!context.mounted) return;
-                Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => AbcCompleteScreen(
+                      userId: userId,
+                      abcId: savedAbcId,
+                      fromAbcInput: true,
+                    )
+                  )
+                );
               },
             ),
           ],

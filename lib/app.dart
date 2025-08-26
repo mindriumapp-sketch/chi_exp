@@ -21,8 +21,23 @@ import 'package:gad_app_team/navigation/screen/myinfo_screen.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 /// Mindrium 메인 앱 클래스
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      precacheImage(const AssetImage('assets/image/activating event.png'), context);
+      precacheImage(const AssetImage('assets/image/belief.png'), context);
+      precacheImage(const AssetImage('assets/image/consequence.png'), context);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
