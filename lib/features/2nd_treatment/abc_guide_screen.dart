@@ -22,7 +22,8 @@ class _AbcGuideScreenState extends State<AbcGuideScreen> {
         background: AppColors.grey100,
         child: Scaffold(
       backgroundColor: Colors.grey.shade100,
-      body: Padding(
+      body: SafeArea(
+      child: Padding(
         padding: const EdgeInsets.all(AppSizes.padding),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -143,7 +144,7 @@ class _AbcGuideScreenState extends State<AbcGuideScreen> {
             ),
           ],
         ),
-      ),)
+      ),),)
     );
   }
 }
