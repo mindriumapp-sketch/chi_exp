@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:gad_app_team/common/constants.dart';
-import 'package:gad_app_team/features/llm/abc_complete.dart';
+// import 'package:gad_app_team/features/llm/abc_complete.dart';
 import 'package:intl/intl.dart';
 import 'package:gad_app_team/features/2nd_treatment/abc_input_screen_chip.dart';
 import 'package:gad_app_team/features/2nd_treatment/abc_input_screen_text.dart';
@@ -441,34 +441,34 @@ class _AbcCardState extends State<_AbcCard> {
                         ),
                       )
                     ),
-                    const SizedBox(height: 20),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.indigo,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                        ),
-                        icon: const Icon(Icons.analytics, color: Colors.white, size: 20),
-                        label: const Text('리포트 보기',
-                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                        onPressed: () {
-                          final userId = FirebaseAuth.instance.currentUser?.uid;
-                          if (userId != null) {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => AbcCompleteScreen(userId: userId, abcId: m.id),
-                              ),
-                            );
-                          }
-                        },
-                      ),
-                    ),
                     const SizedBox(height: 8),
+                    // Align(
+                    //   alignment: Alignment.centerRight,
+                    //   child: ElevatedButton.icon(
+                    //     style: ElevatedButton.styleFrom(
+                    //       backgroundColor: AppColors.indigo,
+                    //       shape: RoundedRectangleBorder(
+                    //         borderRadius: BorderRadius.circular(10),
+                    //       ),
+                    //       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    //     ),
+                    //     icon: const Icon(Icons.analytics, color: Colors.white, size: 20),
+                    //     label: const Text('리포트 보기',
+                    //         style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    //     onPressed: () {
+                    //       final userId = FirebaseAuth.instance.currentUser?.uid;
+                    //       if (userId != null) {
+                    //         Navigator.push(
+                    //           context,
+                    //           MaterialPageRoute(
+                    //             builder: (_) => AbcCompleteScreen(userId: userId, abcId: m.id),
+                    //           ),
+                    //         );
+                    //       }
+                    //     },
+                    //   ),
+                    // ),
+                    // const SizedBox(height: 8),
                   ],
                 ),
                 crossFadeState: _expanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
