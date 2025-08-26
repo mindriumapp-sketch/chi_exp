@@ -178,6 +178,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
         'type': type, // 'A', 'B', 'C-physical', 'C-emotion', 'C-behavior'
         'label': label,
         'createdAt': FieldValue.serverTimestamp(),
+        'is_deleted': false,
       });
     } catch (e) {
       debugPrint('칩 저장 실패: $e');
@@ -194,6 +195,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
         'label': label,
         'updatedAt': FieldValue.serverTimestamp(),
         'count': FieldValue.increment(1),
+        'is_deleted': false
       }, SetOptions(merge: true));
     } catch (e) {
       debugPrint('칩 카운트 증가 실패: $e');
@@ -210,6 +212,8 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
 
       for (var doc in snapshot.docs) {
         final data = doc.data();
+        // Only include chips not deleted
+        if (data['is_deleted'] == true) continue;
         final type = data['type'];
         final label = data['label'];
 
@@ -1211,9 +1215,9 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                     isSelected
                         ? _selectedAGrid.remove(i)
                         : _selectedAGrid.add(i);
-                    if (!isSelected && item.isAdd) {
-                      _bumpCustomChipCount('A', item.label);
-                    }
+                    // if (!isSelected && item.isAdd) {
+                    //   _bumpCustomChipCount('A', item.label);
+                    // }
                     _logEvent('chip_toggle', {
                       'section': 'A',
                       'label': item.label,
@@ -1289,9 +1293,9 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                     isSelected
                         ? _selectedBGrid.remove(i)
                         : _selectedBGrid.add(i);
-                    if (!isSelected && item.isAdd) {
-                      _bumpCustomChipCount('B', item.label);
-                    }
+                    // if (!isSelected && item.isAdd) {
+                    //   _bumpCustomChipCount('B', item.label);
+                    // }
                     _logEvent('chip_toggle', {
                       'section': 'B',
                       'label': item.label,
@@ -1401,9 +1405,9 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                 isSelected
                     ? _selectedPhysical.remove(i)
                     : _selectedPhysical.add(i);
-                if (!isSelected && item.isAdd) {
-                  _bumpCustomChipCount('C-physical', item.label);
-                }
+                // if (!isSelected && item.isAdd) {
+                //   _bumpCustomChipCount('C-physical', item.label);
+                // }
                 _logEvent('chip_toggle', {
                   'section': 'C1',
                   'label': item.label,
@@ -1468,9 +1472,9 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                 isSelected
                     ? _selectedEmotion.remove(i)
                     : _selectedEmotion.add(i);
-                if (!isSelected && item.isAdd) {
-                  _bumpCustomChipCount('C-emotion', item.label);
-                }
+                // if (!isSelected && item.isAdd) {
+                //   _bumpCustomChipCount('C-emotion', item.label);
+                // }
                 _logEvent('chip_toggle', {
                   'section': 'C2',
                   'label': item.label,
@@ -1536,9 +1540,9 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                 isSelected
                     ? _selectedBehavior.remove(i)
                     : _selectedBehavior.add(i);
-                if (!isSelected && item.isAdd) {
-                  _bumpCustomChipCount('C-behavior', item.label);
-                }
+                // if (!isSelected && item.isAdd) {
+                //   _bumpCustomChipCount('C-behavior', item.label);
+                // }
                 _logEvent('chip_toggle', {
                   'section': 'C3',
                   'label': item.label,
@@ -1695,6 +1699,32 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
     }
   }
 
+  bool _isCustomChip(String type, String label) {
+    List<GridItem> list;
+    switch (type) {
+      case 'A':
+        list = _aGridChips;
+        break;
+      case 'B':
+        list = _bGridChips;
+        break;
+      case 'C-physical':
+        list = _physicalChips;
+        break;
+      case 'C-emotion':
+        list = _emotionChips;
+        break;
+      case 'C-behavior':
+        list = _behaviorChips;
+        break;
+      default:
+        return false;
+    }
+    final idx = list.indexWhere((c) => c.label == label);
+    if (idx == -1) return false;
+    return list[idx].isAdd == true; // 사용자 정의 칩만 true
+  }
+
   // 중복 알림 다이얼로그 표시
   void _showDuplicateAlert(BuildContext context) {
     showDialog(
@@ -1771,19 +1801,22 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
       ..addAll(updated);
   }
 
-  // Firestore에서 커스텀 칩 삭제 함수 (모든 칩에 대해 삭제 허용, Firestore에서도 삭제 시도)
+  // Firestore에서 커스텀 칩 삭제 함수 (is_deleted로 soft delete)
   Future<void> _deleteCustomChip(String type, String label, int index) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    // Firestore: delete any custom chip doc with matching type+label (regardless of session)
+    // Firestore: soft delete any custom chip doc with matching type+label (set is_deleted: true)
     try {
       final query = await _chipsRef(user.uid)
           .where('type', isEqualTo: type)
           .where('label', isEqualTo: label)
           .get();
       for (var doc in query.docs) {
-        await doc.reference.delete();
+        await doc.reference.update({
+          'is_deleted': true,
+          'deletedAt': FieldValue.serverTimestamp(),
+        });
       }
     } catch (e) {
       debugPrint('칩 삭제 중 Firestore 오류: $e');
@@ -1895,6 +1928,33 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                         'report'     : null,   // ✅ report 필드 추가
                       });
                   savedAbcId = newId;
+                }
+
+                // ✅ 최종 저장된 칩만, 그리고 커스텀 칩만 카운트 증가
+                for (final label in activatingEvent) {
+                  if (_isCustomChip('A', label)) {
+                    await _bumpCustomChipCount('A', label);
+                  }
+                }
+                for (final label in belief) {
+                  if (_isCustomChip('B', label)) {
+                    await _bumpCustomChipCount('B', label);
+                  }
+                }
+                for (final label in c1) {
+                  if (_isCustomChip('C-physical', label)) {
+                    await _bumpCustomChipCount('C-physical', label);
+                  }
+                }
+                for (final label in c2) {
+                  if (_isCustomChip('C-emotion', label)) {
+                    await _bumpCustomChipCount('C-emotion', label);
+                  }
+                }
+                for (final label in c3) {
+                  if (_isCustomChip('C-behavior', label)) {
+                    await _bumpCustomChipCount('C-behavior', label);
+                  }
                 }
 
                 await _saveSelectedChipsToFirestore();
