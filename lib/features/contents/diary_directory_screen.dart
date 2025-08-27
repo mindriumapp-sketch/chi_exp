@@ -83,9 +83,21 @@ class _AbcStreamListState extends State<AbcStreamList> {
         .collection('abc_models');
 
     if (widget.selectedRange != null) {
+      // Normalize to [start-of-day, next-day-start) to include the whole end date
+      final start = DateTime(
+        widget.selectedRange!.start.year,
+        widget.selectedRange!.start.month,
+        widget.selectedRange!.start.day,
+      );
+      final endExclusive = DateTime(
+        widget.selectedRange!.end.year,
+        widget.selectedRange!.end.month,
+        widget.selectedRange!.end.day,
+      ).add(const Duration(days: 1));
+
       return base
-          .where('completedAt', isGreaterThanOrEqualTo: widget.selectedRange!.start)
-          .where('completedAt', isLessThanOrEqualTo: widget.selectedRange!.end)
+          .where('completedAt', isGreaterThanOrEqualTo: start)
+          .where('completedAt', isLessThan: endExclusive) // strict < next day start
           .snapshots();
     }
     return base.snapshots();
@@ -493,7 +505,7 @@ class _AbcCardState extends State<_AbcCard> {
                     const Divider(),
                     const SizedBox(height: 8),
                     _buildCardContent(m),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 8),
                   ],
                 ),
                 crossFadeState: _expanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
