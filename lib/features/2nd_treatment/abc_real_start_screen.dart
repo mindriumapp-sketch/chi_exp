@@ -31,16 +31,6 @@ class AbcRealStartScreen extends StatelessWidget {
                     const Icon(Icons.edit_note, size: 100, color: AppColors.indigo),
                     const SizedBox(height: 32),
                     const Text(
-                      '예시로 알아보는 튜토리얼 과정이 끝났습니다!!',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 32),
-                    const Text(
                       'ABC 모델은 A(상황)-B(생각)-C(결과)로 나눠 적어 내 감정과 행동의 패턴을 발견하는 일기 작성 기법이에요! \n',
                       style: TextStyle(
                         fontSize: 24,
@@ -50,9 +40,9 @@ class AbcRealStartScreen extends StatelessWidget {
                       textAlign: TextAlign.center,
                     ),
                     const Text(
-                      '실제로 작성해볼까요?',
+                      'ABC 모델을 예시로 알아보는 과정이 끝났습니다!! 이제 실제로 작성해볼까요?',
                       style: TextStyle(
-                        fontSize: 24,
+                        fontSize: 20,
                         fontWeight: FontWeight.bold,
                         color: Colors.black,
                       ),

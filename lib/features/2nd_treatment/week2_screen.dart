@@ -20,7 +20,7 @@ class _Week2ScreenState extends State<Week2Screen> {
         background: AppColors.grey100,
         child: Scaffold(
       backgroundColor: Colors.grey.shade100,
-      appBar: CustomAppBar(title: '일기 쓰기 (튜토리얼)'),
+      appBar: CustomAppBar(title: '예시보기'),
       body: Padding(
         padding: const EdgeInsets.all(AppSizes.padding),
         child: Column(

@@ -18,7 +18,7 @@ class _AbcActivateScreenState extends State<AbcActivateScreen> {
         aspect: 9 / 16,
         background: Colors.grey.shade100,
         child:Scaffold(
-      appBar: CustomAppBar(title: '일기 쓰기 (튜토리얼)'),
+      appBar: CustomAppBar(title: '예시보기'),
       body: Stack(
         children: [
           Positioned.fill(

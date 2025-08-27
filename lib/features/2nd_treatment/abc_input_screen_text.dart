@@ -1,14 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:gad_app_team/widgets/custom_appbar.dart';
-import '../../common/constants.dart';
 import '../../widgets/navigation_button.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'dart:async';
-import 'package:flutter/services.dart';
 import 'package:gad_app_team/widgets/aspect_viewport.dart';
-// import 'package:gad_app_team/features/llm/abc_complete.dart';
-
 
 class AbcInputTextScreen extends StatefulWidget {
   final Map<String, String>? exampleData;
@@ -29,56 +25,81 @@ class AbcInputTextScreen extends StatefulWidget {
 }
 
 class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBindingObserver {
-  bool _didInit = false;
+  ///////check box///////
+  bool isCheckedA = false;
+  bool isCheckedB = false;
+  bool isCheckedC1 = false;
+  bool isCheckedC2 = false;
+  bool isCheckedC3 = false;
 
-  bool get _isEditing => widget.isEditMode && (widget.abcId != null && widget.abcId!.isNotEmpty);
+  Timer? _idleTimer;
+  Timer? _bgAbandonTimer;
+  static const Duration _idleTimeout = Duration(minutes: 1);
+  static const Duration _bgAbandonTimeout = Duration(minutes: 5);
 
-  int _currentStep = 0;
-  // Sub-step for C-step questions
-  int _currentCSubStep = 0;
+  bool _validateBeforeNext() {
+    final hasText = _textDiaryController.text.trim().isNotEmpty;
 
-  // ===== Session & instrumentation (efficient buffered logging) =====
-  String? _sessionId;
-  bool _sessionCompleted = false;
+    bool requiredChecked;
+    switch (_currentStep) {
+      case 0:
+        requiredChecked = isCheckedA;
+        break;
+      case 1:
+        requiredChecked = isCheckedB;
+        break;
+      case 2:
+        switch (_currentCSubStep) {
+          case 0:
+            requiredChecked = isCheckedC1;
+            break;
+          case 1:
+            requiredChecked = isCheckedC2;
+            break;
+          default:
+            requiredChecked = isCheckedC3;
+            break;
+        }
+        break;
+      default:
+        requiredChecked = false;
+    }
 
-  // Counters for summarized metrics (unified)
-  int _keyPresses = 0; // all key downs including backspace
-  int _touches = 0;
-  int _textChanges = 0;
-  final int _chipToggles = 0; // 칩 토글 누적 카운트
-  int _eventSeq = 0;    // 이벤트 문서 순번
+    String? message;
+    if (!hasText && !requiredChecked) {
+      message = '내용을 입력하고 아래 체크박스를 체크해주세요.';
+    } else if (!hasText) {
+      message = '내용을 입력해주세요.';
+    } else if (!requiredChecked) {
+      message = '아래 체크박스를 체크해주세요.';
+    }
 
-  // Step time tracking
-  final Map<String, int> _stepTimeMs = {'A': 0, 'B': 0, 'C1': 0, 'C2': 0, 'C3': 0};
-  DateTime _stepEnteredAt = DateTime.now();
+    if (message != null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(
+              content: Text(message),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+      }
+      return false;
+    }
+    return true;
+  }
 
-  // Raw input listening
-  final FocusNode _rawFocus = FocusNode();
-  final Map<TextEditingController, String> _prevText = {};
-  final Map<TextEditingController, Timer> _debouncers = {};
+bool get _isEditing => widget.isEditMode && (widget.abcId != null && widget.abcId!.isNotEmpty);
+int _currentStep = 0;
+int _currentCSubStep = 0;
+String? _sessionId;
+bool _sessionCompleted = false;
+int _pageTimeMs = 0;
+DateTime _stepEnteredAt = DateTime.now();
+bool _isPaused = false;
+final TextEditingController _textDiaryController = TextEditingController();
 
-  // Heartbeat & event buffer
-  Timer? _heartbeatTimer;
-  final List<Map<String, dynamic>> _eventBuffer = [];
-  Timer? _flushTimer;
-  static const int _bufferMax = 25;
-  static const Duration _flushInterval = Duration(seconds: 5);
-
-  // Throttle touch logging
-  DateTime? _lastTouchTs;
-  static const int _touchThrottleMs = 300;
-
-
-  
-  // === Text mode controllers (A, B, C1~C3) ===
-
-  final TextEditingController _aTextController = TextEditingController();
-  final TextEditingController _bTextController = TextEditingController();
-  final TextEditingController _c1TextController = TextEditingController();
-  final TextEditingController _c2TextController = TextEditingController();
-  final TextEditingController _c3TextController = TextEditingController();
-
-  // --- Sequential ID helpers (per-user, per-collection) ---
   DocumentReference<Map<String, dynamic>> _counterRef(String uid, String collection) {
     return FirebaseFirestore.instance
         .collection('chi_users')
@@ -88,7 +109,6 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
   }
 
   Future<String> _nextSequencedDocId(String uid, String collection) async {
-    // Returns IDs like "abc_models_000001" / "abc_sessions_000001"
     return FirebaseFirestore.instance.runTransaction<String>((tx) async {
       final ref = _counterRef(uid, collection);
       final snap = await tx.get(ref);
@@ -117,11 +137,7 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
       if (data == null) return;
 
       setState(() {
-        _aTextController.text = (data['activatingEvent'] ?? '').toString();
-        _bTextController.text = (data['belief'] ?? '').toString();
-        _c1TextController.text = (data['c1_physical'] ?? '').toString();
-        _c2TextController.text = (data['c2_emotion'] ?? '').toString();
-        _c3TextController.text = (data['c3_behavior'] ?? '').toString();
+        _textDiaryController.text = (data['text_diary'] ?? '').toString();
       });
     } catch (e) {
       debugPrint('기존 ABC 불러오기 실패(Text): $e');
@@ -136,76 +152,89 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
     WidgetsBinding.instance.addObserver(this);
     _stepEnteredAt = DateTime.now();
     _startSession();
-    _attachTextWatchers();
     if (_isEditing) {
       _loadExistingAbcText();
     }
+    _resetIdleTimer();
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (!_didInit) {
-      _didInit = true;
-    }
-  }
 
   void _nextStep() {
-    final fromKey = _currentStepKey();
     if (_currentStep < 2) {
       setState(() {
         _currentStep++;
         if (_currentStep == 2) _currentCSubStep = 0;
       });
-      _onStepChange(fromKey, _currentStepKey());
     } else {
       if (_currentCSubStep < 2) {
         setState(() {
           _currentCSubStep++;
         });
-        _onStepChange(fromKey, _currentStepKey());
       }
     }
   }
 
   void _previousStep() {
-    final fromKey = _currentStepKey();
     if (_currentStep > 0) {
       setState(() {
         _currentStep--;
         _currentCSubStep = 0;
       });
-      _onStepChange(fromKey, _currentStepKey());
     }
-  }
-
-  bool _hasTextForCurrentStep() {
-    if (_currentStep == 0) return _aTextController.text.trim().isNotEmpty;
-    if (_currentStep == 1) return _bTextController.text.trim().isNotEmpty;
-    switch (_currentCSubStep) {
-      case 0:
-        return _c1TextController.text.trim().isNotEmpty;
-      case 1:
-        return _c2TextController.text.trim().isNotEmpty;
-      default:
-        return _c3TextController.text.trim().isNotEmpty;
-    }
-  }
-
-  bool _validateStepOrToast() {
-    final ok = _hasTextForCurrentStep();
-    if (!ok) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('내용을 작성해주세요.')),
-      );
-    }
-    return ok;
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.inactive || state == AppLifecycleState.paused) {
-      _markAbandoned('app_background');
+      // Stop the current step timer and mark as paused (do not count paused duration)
+      if (!_isPaused) {
+        _bumpStepTimeToNow(_currentStepKey());
+        _isPaused = true;
+      }
+      // Schedule abandonment if not resumed within timeout
+      _bgAbandonTimer?.cancel();
+      _bgAbandonTimer = Timer(_bgAbandonTimeout, () {
+        // Make sure we enter paused state at timeout and stop counting time
+        _bumpStepTimeToNow(_currentStepKey());
+        _isPaused = true;
+        _markAbandoned('app_background');
+      });
+    } else if (state == AppLifecycleState.resumed) {
+      // Resume timing from now so time while paused isn't counted
+      if (_isPaused) {
+        _isPaused = false;
+        _stepEnteredAt = DateTime.now();
+      }
+      _bgAbandonTimer?.cancel();
+      _resetIdleTimer();
+      _maybeResumeAbandoned();
+    }
+  }
+
+  Future<void> _maybeResumeAbandoned() async {
+    try {
+      if (_sessionCompleted || _sessionId == null) return;
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) return;
+
+      final docRef = FirebaseFirestore.instance
+          .collection('chi_users')
+          .doc(uid)
+          .collection('abc_sessions')
+          .doc(_sessionId);
+      final snap = await docRef.get();
+      final data = snap.data();
+      if (data == null) return;
+
+      final status = data['status'];
+      final reason = data['reason'];
+      if (status == 'abandoned' && (reason == 'app_background' || reason == 'inactive_timeout')) {
+        await docRef.set({
+          'status': 'in_progress',
+        }, SetOptions(merge: true));
+      }
+    } catch (e) {
+      debugPrint('세션 재개 처리 실패: $e');
     }
   }
 
@@ -215,11 +244,7 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
       canPop: true,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) {
-          _logEvent('system_back', {
-            'step': _currentStep,
-            'cSubStep': _currentCSubStep,
-          });
-          _markAbandoned('system_back');
+          _markAbandoned('page_back');
         }
       },
       child: AspectViewport(
@@ -227,41 +252,16 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
         background: Colors.grey.shade100,
         child:Scaffold(
         backgroundColor: Colors.grey.shade100,
-        appBar: CustomAppBar(title: _isEditing ? '일기 수정' : '일기 쓰기'),
+        appBar: CustomAppBar(
+          title: _isEditing ? '일기 수정' : '일기 쓰기',
+          confirmOnBack: true,
+          confirmOnHome: true,
+        ),
         body: MediaQuery(
           data: MediaQuery.of(context).copyWith(textScaler: const TextScaler.linear(1)),
           child: SafeArea(
-            child: KeyboardListener(
-              focusNode: _rawFocus,
-              onKeyEvent: (KeyEvent event) {
-                if (event is KeyDownEvent) {
-                  _keyPresses++;
-                  final isBackspace = event.logicalKey == LogicalKeyboardKey.backspace;
-                  if (isBackspace) {
-                    _logEvent('key', {
-                      'logicalKey': event.logicalKey.keyLabel,
-                      'backspace': true,
-                    });
-                  }
-                }
-              },
-              child: Listener(
-                behavior: HitTestBehavior.translucent,
-                onPointerDown: (e) {
-                  final now = DateTime.now();
-                  if (_lastTouchTs == null ||
-                      now.difference(_lastTouchTs!).inMilliseconds > _touchThrottleMs) {
-                    _touches++;
-                    _logEvent('touch', {'x': e.position.dx, 'y': e.position.dy});
-                    _lastTouchTs = now;
-                  } else {
-                    _touches++;
-                  }
-                },
-                child: _buildMainContent(),
-              ),
+              child: _buildMainContent(),
             ),
-          ),
         ),
         bottomNavigationBar: Padding(
           padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
@@ -272,7 +272,8 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
                 : (_currentCSubStep < 2 ? '다음' : (_isEditing ? '수정' : '저장')),
             onBack: () {
               if (_currentStep == 0) {
-                _markAbandoned('nav_back');
+                _markAbandoned('page_back');
+                _cancelTimers();
                 Navigator.pop(context);
               } else if (_currentStep == 2 && _currentCSubStep > 0) {
                 setState(() => _currentCSubStep--);
@@ -281,9 +282,7 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
               }
             },
             onNext: () async {
-              // 현재 단계에 내용이 있어야 진행 가능
-              if (!_validateStepOrToast()) return;
-
+              if (!_validateBeforeNext()) return;
               if (_currentStep < 2) {
                 _nextStep();
               } else {
@@ -293,7 +292,7 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
                   await _saveAbcAndExit();
                 }
               }
-            },
+            }
           ),
         ),
       ),)
@@ -302,109 +301,42 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
 
   Widget _buildMainContent() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 24),
-          // 2. A-B-C 인디케이터 (가로선 포함)
-          _buildAbcStepIndicator(),
-          const SizedBox(height: 24),
-          // 3. 단계별 질문/입력 UI
+          _buildInputText(),
+          const SizedBox(height: 32),
           _buildStepContent(),
         ],
       ),
     );
   }
-
-  // 인디케이터(가로선 포함)
-  Widget _buildAbcStepIndicator() {
-    List<String> labels = ['A', 'B', 'C'];
-    List<String> titles = ['상황', '생각', '결과'];
-    List<String> descriptions = [
-      '반응을 유발하는 사건이나 상황',
-      '사건에 대한 해석이나 생각',
-      '결과로 나타나는 감정이나 행동',
-    ];
-    return Card(
-      elevation: 6,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-      color: const Color.fromARGB(255, 242, 243, 254),
-      margin: const EdgeInsets.only(bottom: 8),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: List.generate(5, (i) {
-            if (i % 2 == 1) {
-              // Horizontal line between steps - always active color
-              return Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 24),
-                  child: Container(height: 2, color: AppColors.indigo),
-                ),
-              );
-            } else {
-              int idx = i ~/ 2;
-              final isActive = _currentStep == idx;
-              return Expanded(
-                flex: 2,
-                child: Column(
-                  children: [
-                    Container(
-                      width: isActive ? 64 : 48,
-                      height: isActive ? 64 : 48,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color:
-                            isActive ? AppColors.indigo : Colors.grey.shade300,
-                        boxShadow:
-                            isActive
-                                ? [
-                                  BoxShadow(
-                                    color: AppColors.indigo.withValues(
-                                      alpha: 0.18,
-                                    ),
-                                    blurRadius: 12,
-                                    offset: Offset(0, 4),
-                                  ),
-                                ]
-                                : [],
-                      ),
-                      child: Center(
-                        child: Text(
-                          labels[idx],
-                          style: TextStyle(
-                            color: isActive ? Colors.white : Colors.grey[600],
-                            fontWeight: FontWeight.bold,
-                            fontSize: isActive ? 22 : 20,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      titles[idx],
-                      style: TextStyle(
-                        color: isActive ? AppColors.indigo : Colors.grey[600],
-                        fontWeight:
-                            isActive ? FontWeight.bold : FontWeight.normal,
-                        fontSize: 15,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      descriptions[idx],
-                      style: const TextStyle(color: Colors.black, fontSize: 12),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              );
-            }
-          }),
+  
+  Widget _buildInputText() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          '오늘 있었던 일 중 기억에 남는 일에 대하여 자유롭게 작성해주세요.',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
-      ),
+        const SizedBox(height: 16),
+        TextField(
+          controller: _textDiaryController,
+          maxLines: 16,
+          onChanged: (_) {
+            _resetIdleTimer();
+            setState(() {});
+          },
+          decoration: InputDecoration(
+            hintText: '',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            filled: true,
+            fillColor: Colors.white,
+          ),
+        ),
+      ],
     );
   }
 
@@ -427,20 +359,22 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'A. 오늘 있었던 기억에 남는 일은 무엇인가요?\n     한 가지만 작성해 주세요.',
+          '아래 내용을 작성하셨나요?',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
-        const SizedBox(height: 16),
-        TextField(
-          controller: _aTextController,
-          maxLines: 8,
-          decoration: InputDecoration(
-            hintText: '예: 자전거 타기',
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            filled: true,
-            fillColor: Colors.white,
+        CheckboxListTile(
+          title: const Text(
+            "반응을 유발하는 사건이나 상황 (A. 상황)",
+            style: TextStyle(fontSize: 16),
           ),
-        ),
+          value: isCheckedA,
+          onChanged: (bool? value) {
+            setState(() {
+              isCheckedA = value ?? false;
+            });
+            _resetIdleTimer();
+          },
+        )
       ],
     );
   }
@@ -450,20 +384,22 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'B. 그 상황에서 어떤 생각이 떠올랐나요?',
+          '아래 내용을 작성하셨나요?',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
-        const SizedBox(height: 16),
-        TextField(
-          controller: _bTextController,
-          maxLines: 8,
-          decoration: InputDecoration(
-            hintText: '예: 넘어질 것 같음',
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            filled: true,
-            fillColor: Colors.white,
+        CheckboxListTile(
+          title: const Text(
+            '사건에 대한 해석이나 생각 (B. 생각)',
+            style: TextStyle(fontSize: 16),
           ),
-        ),
+          value: isCheckedB,
+          onChanged: (bool? value) {
+            setState(() {
+              isCheckedB = value ?? false;
+            });
+            _resetIdleTimer();
+          },
+        )
       ],
     );
   }
@@ -475,20 +411,22 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'C-1. 그때 몸에서 어떤 변화가 있었나요?',
+              '아래 내용을 작성하셨나요?',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _c1TextController,
-              maxLines: 8,
-              decoration: InputDecoration(
-                hintText: '예: 가슴 두근거림',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                filled: true,
-                fillColor: Colors.white,
+            CheckboxListTile(
+              title: const Text(
+                '결과로 나타나는 신체증상 (C1. 신체증상)',
+                style: TextStyle(fontSize: 16),
               ),
-            ),
+              value: isCheckedC1,
+              onChanged: (bool? value) {
+                setState(() {
+                  isCheckedC1 = value ?? false;
+                });
+                _resetIdleTimer();
+              },
+            )
           ],
         );
       case 1:
@@ -496,20 +434,22 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'C-2. 그 순간 어떤 감정을 느꼈나요?',
+              '아래 내용을 작성하셨나요?',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _c2TextController,
-              maxLines: 8,
-              decoration: InputDecoration(
-                hintText: '예: 두려움',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                filled: true,
-                fillColor: Colors.white,
+            CheckboxListTile(
+              title: const Text(
+                '결과로 나타나는 감정 (C2. 감정)',
+                style: TextStyle(fontSize: 16),
               ),
-            ),
+              value: isCheckedC2,
+              onChanged: (bool? value) {
+                setState(() {
+                  isCheckedC2 = value ?? false;
+                });
+                _resetIdleTimer();
+              },
+            )
           ],
         );
       case 2:
@@ -517,20 +457,22 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'C-3. 그래서 어떤 행동을 했나요?',
+              '아래 내용을 작성하셨나요?',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _c3TextController,
-              maxLines: 8,
-              decoration: InputDecoration(
-                hintText: '예: 자전거 끌고가기',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                filled: true,
-                fillColor: Colors.white,
+            CheckboxListTile(
+              title: const Text(
+                '결과로 나타나는 행동 (C3. 행동)',
+                style: TextStyle(fontSize: 16),
               ),
-            ),
+              value: isCheckedC3,
+              onChanged: (bool? value) {
+                setState(() {
+                  isCheckedC3 = value ?? false;
+                });
+                _resetIdleTimer();
+              },
+            )
           ],
         );
       default:
@@ -554,19 +496,7 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
       // 사용자 문서 머지 생성 (존재 보장)
       await firestore.collection('chi_users').doc(userId).set({}, SetOptions(merge: true));
 
-      final c1 = _c1TextController.text.trim();
-      final c2 = _c2TextController.text.trim();
-      final c3 = _c3TextController.text.trim();
-      final activatingEvent = _aTextController.text.trim();
-      final belief          = _bTextController.text.trim();
-
-      final baseData = {
-        'activatingEvent': activatingEvent,
-        'belief'         : belief,
-        'c1_physical'    : c1,
-        'c2_emotion'     : c2,
-        'c3_behavior'    : c3,
-      };
+      final textDiary = _textDiaryController;
 
       if (!mounted) return;
       showDialog(
@@ -592,14 +522,11 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
                       .doc(widget.abcId!);
 
                   final payload = {
-                    ...baseData,
+                    'text_diary': textDiary.text,
                     'startedAt': widget.startedAt,
                     'completedAt': FieldValue.serverTimestamp(),
                   };
-
-                  // merge: true 로 기존 필드(예: completedAt) 보존
                   await docRef.set(payload, SetOptions(merge: true));
-                  // savedAbcId = widget.abcId!;
                 } else {
                   // 신규: 시퀀스 ID 생성 후 저장
                   final newModelId = await _nextSequencedDocId(userId, 'abc_models');
@@ -609,17 +536,16 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
                       .collection('abc_models')
                       .doc(newModelId)
                       .set({
-                        ...baseData,
+                        'text_diary': textDiary.text,
                         'startedAt'  : widget.startedAt,
                         'completedAt': FieldValue.serverTimestamp(),
                       });
-                  // savedAbcId = newModelId;
                 }
 
                 // 세션 완료 처리
+                _cancelTimers();
                 final fromKey = _currentStepKey();
                 _bumpStepTimeToNow(fromKey);
-                await _flushEvents();
 
                 if (_sessionId != null) {
                   await firestore
@@ -629,33 +555,17 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
                       .doc(_sessionId)
                       .set({
                     'status': 'completed',
-                    'screen': 'AbcInputScreen_text/${_currentStepKey()}',
                     'endedAt': FieldValue.serverTimestamp(),
                     'durationMs': widget.startedAt != null
                         ? DateTime.now().millisecondsSinceEpoch - widget.startedAt!.millisecondsSinceEpoch
                         : null,
-                    'keyPresses': _keyPresses,
-                    'touches': _touches,
-                    'textChanges': _textChanges,
-                    'chipToggles': _chipToggles,
-                    'stepTimeMs': _stepTimeMs,
+                    'pageTimeMs': _pageTimeMs,
+                    
                   }, SetOptions(merge: true));
-                  await _logEvent('session_completed', {});
-                  await _flushEvents();
                 }
                 _sessionCompleted = true;
 
                 if (!context.mounted) return;
-                // Navigator.push(
-                //   context,
-                //   MaterialPageRoute(
-                //     builder: (_) => AbcCompleteScreen(
-                //       userId: userId,
-                //       abcId: savedAbcId,
-                //       fromAbcInput: true,
-                //     )
-                //   )
-                // );
                 Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
               },
             ),
@@ -669,6 +579,20 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
         SnackBar(content: Text('저장 중 오류가 발생했습니다: $e')),
       );
     }
+  }
+
+  void _resetIdleTimer() {
+    _idleTimer?.cancel();
+    _idleTimer = Timer(_idleTimeout, () {
+      _bumpStepTimeToNow(_currentStepKey());
+      _isPaused = true;
+      _markAbandoned('inactive_timeout');
+    });
+  }
+
+  void _cancelTimers() {
+    _idleTimer?.cancel();
+    _bgAbandonTimer?.cancel();
   }
 
   // ==== Efficient session logging and helpers (class-scope) ====
@@ -688,7 +612,9 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
   void _bumpStepTimeToNow(String stepKey) {
     final now = DateTime.now();
     final delta = now.difference(_stepEnteredAt).inMilliseconds;
-    _stepTimeMs[stepKey] = (_stepTimeMs[stepKey] ?? 0) + (delta < 0 ? 0 : delta);
+    if (delta > 0) {
+      _pageTimeMs += delta;
+    }
     _stepEnteredAt = now;
   }
 
@@ -701,121 +627,12 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
       final newSessionId = await _nextSequencedDocId(uid, 'abc_sessions');
       await sessions.doc(newSessionId).set({
         'status': 'in_progress',
-        'screen': 'AbcInputScreen_text',
         'experimentCondition': 'Text_input',
         'startedAt': widget.startedAt ?? FieldValue.serverTimestamp(),
-        'createdAt': FieldValue.serverTimestamp(),
       });
       _sessionId = newSessionId;
-
-      _eventBuffer.clear();
-      _flushTimer?.cancel();
-      _flushTimer = Timer.periodic(_flushInterval, (_) => _flushEvents());
-
-      _heartbeatTimer?.cancel();
-      _heartbeatTimer = Timer.periodic(const Duration(seconds: 15), (_) async {
-        final u = FirebaseAuth.instance.currentUser?.uid;
-        if (u == null || _sessionId == null) return;
-        await FirebaseFirestore.instance
-            .collection('chi_users')
-            .doc(u)
-            .collection('abc_sessions')
-            .doc(_sessionId)
-            .set({'heartbeatAt': FieldValue.serverTimestamp()}, SetOptions(merge: true));
-      });
-
-      await _logEvent('session_start', {
-        'step': _currentStep,
-        'cSubStep': _currentCSubStep,
-      });
     } catch (e) {
       debugPrint('세션 시작 실패: $e');
-    }
-  }
-
-  Future<void> _enqueueEvent(String type, Map<String, dynamic> data) async {
-    if (_sessionId == null) return;
-    final seq = ++_eventSeq; // 1부터 증가
-    _eventBuffer.add({
-      'seq': seq,
-      'type': type,
-      'ts': FieldValue.serverTimestamp(),
-      'step': _currentStep,
-      'cSubStep': _currentCSubStep,
-      ...data,
-    });
-    if (_eventBuffer.length >= _bufferMax) {
-      await _flushEvents();
-    }
-  }
-
-  Future<void> _flushEvents() async {
-    try {
-      final uid = FirebaseAuth.instance.currentUser?.uid;
-      if (uid == null || _sessionId == null) return;
-      if (_eventBuffer.isEmpty) return;
-
-      final toWrite = List<Map<String, dynamic>>.from(_eventBuffer);
-      _eventBuffer.clear();
-
-      final base = FirebaseFirestore.instance
-          .collection('chi_users')
-          .doc(uid)
-          .collection('abc_sessions')
-          .doc(_sessionId)
-          .collection('events');
-
-      final batch = FirebaseFirestore.instance.batch();
-      for (final ev in toWrite) {
-        final int seq = ev['seq'] as int;
-        final String id = seq.toString().padLeft(6, '0'); // 000001, 000002, ...
-        final doc = base.doc(id);
-        batch.set(doc, ev);
-      }
-      await batch.commit();
-    } catch (e) {
-      debugPrint('이벤트 배치 기록 실패: $e');
-    }
-  }
-
-  Future<void> _logEvent(String type, Map<String, dynamic> data) async {
-    await _enqueueEvent(type, data);
-  }
-
-  void _attachTextWatchers() {
-    void watch(String field, TextEditingController c) {
-      _prevText[c] = c.text;
-      _debouncers[c]?.cancel();
-      c.addListener(() {
-        final prev = _prevText[c] ?? '';
-        final cur = c.text;
-        final delta = cur.length - prev.length;
-        final deletion = cur.length < prev.length;
-        _prevText[c] = cur;
-        _textChanges++;
-        _debouncers[c]?.cancel();
-        _debouncers[c] = Timer(const Duration(milliseconds: 400), () {
-          _logEvent('text_change', {
-            'field': field,
-            'len': cur.length,
-            'delta': delta,
-            'deletion': deletion,
-          });
-        });
-      });
-    }
-    // attach watchers to text controllers
-    watch('A_text', _aTextController);
-    watch('B_text', _bTextController);
-    watch('C1_text', _c1TextController);
-    watch('C2_text', _c2TextController);
-    watch('C3_text', _c3TextController);
-  }
-
-  Future<void> _onStepChange(String fromKey, String toKey) async {
-    if (fromKey != toKey) {
-      _bumpStepTimeToNow(fromKey);
-      await _logEvent('step_change', {'from': fromKey, 'to': toKey});
     }
   }
 
@@ -826,7 +643,6 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
       if (uid == null) return;
 
       _bumpStepTimeToNow(_currentStepKey());
-      await _flushEvents();
 
       await FirebaseFirestore.instance
           .collection('chi_users')
@@ -835,21 +651,22 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
           .doc(_sessionId)
           .set({
         'status': 'abandoned',
-        'screen': 'AbcInputScreen_text/${_currentStepKey()}',
         'endedAt': FieldValue.serverTimestamp(),
         'durationMs': widget.startedAt != null
             ? DateTime.now().millisecondsSinceEpoch - widget.startedAt!.millisecondsSinceEpoch
-            : null,        
+            : null,
         'reason': reason,
-        'keyPresses': _keyPresses,
-        'touches': _touches,
-        'textChanges': _textChanges,
-        'chipToggles': _chipToggles,
-        'stepTimeMs': _stepTimeMs,
+        'screen': 'AbcInputScreen_text/${_currentStepKey()}',
+        'textLength': _textDiaryController.text.replaceAll(RegExp(r'\s+'), '').length,
+        'checkStates': {
+          'A': isCheckedA,
+          'B': isCheckedB,
+          'C1': isCheckedC1,
+          'C2': isCheckedC2,
+          'C3': isCheckedC3,
+        },
+        'pageTimeMs': _pageTimeMs,
       }, SetOptions(merge: true));
-
-      await _logEvent('session_abandoned', {'reason': reason});
-      await _flushEvents();
     } catch (e) {
       debugPrint('세션 중도이탈 기록 실패: $e');
     }
@@ -858,19 +675,9 @@ class _AbcInputTextScreenState extends State<AbcInputTextScreen> with WidgetsBin
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _heartbeatTimer?.cancel();
-    _flushTimer?.cancel();
-    _rawFocus.dispose();
-    for (final t in _debouncers.values) {
-      t.cancel();
-    }
-    _flushEvents();
+    _cancelTimers();
     _markAbandoned('dispose_without_save');
-    _aTextController.dispose();
-    _bTextController.dispose();
-    _c1TextController.dispose();
-    _c2TextController.dispose();
-    _c3TextController.dispose();
+    _textDiaryController.dispose();
     super.dispose();
   }
 }

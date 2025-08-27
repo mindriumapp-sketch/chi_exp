@@ -1,22 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:gad_app_team/widgets/custom_appbar.dart';
-// import 'package:provider/provider.dart';
 import '../../common/constants.dart';
 import '../../widgets/navigation_button.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
-import 'package:flutter/services.dart';
 import 'package:gad_app_team/widgets/aspect_viewport.dart';
-// import 'package:gad_app_team/features/llm/abc_complete.dart';
-// import 'package:gad_app_team/data/user_provider.dart';
 
 class GridItem {
   // final IconData icon;
   final String label;
   final bool isAdd;
-  final Color? borderColor; // per-item border color (when not selected)
-  final double? borderWidth; // per-item border width
+  final Color? borderColor; 
+  final double? borderWidth;
   const GridItem({
     // required this.icon,
     required this.label,
@@ -46,7 +42,6 @@ class AbcInputScreen extends StatefulWidget {
 }
 
 class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObserver {
-  bool _didInit = false;
 
   bool get _isEditing => widget.isEditMode && (widget.abcId != null && widget.abcId!.isNotEmpty);
 
@@ -76,44 +71,27 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
     });
   }
   int _currentStep = 0;
-  // Sub-step for C-step questions
   int _currentCSubStep = 0;
-
-  // ===== Session & instrumentation (efficient buffered logging) =====
   String? _sessionId;
   bool _sessionCompleted = false;
   bool _isPaused = false;
-  DateTime? _pausedAt;
-
-  // Counters for summarized metrics (unified)
-  int _keyPresses = 0; // all key downs including backspace
-  int _touches = 0;
-  int _textChanges = 0;
-  int _chipToggles = 0; // 칩 토글 누적 카운트
-  int _eventSeq = 0;    // 이벤트 문서 순번
+  Timer? _idleTimer;
+  Timer? _bgAbandonTimer;
+  static const Duration _idleTimeout = Duration(minutes: 1);
+  static const Duration _bgAbandonTimeout = Duration(minutes: 5);
+  int _chipToggles = 0;
 
   // Step time tracking
   final Map<String, int> _stepTimeMs = {'A': 0, 'B': 0, 'C1': 0, 'C2': 0, 'C3': 0};
   DateTime _stepEnteredAt = DateTime.now();
+  int get _pageTimeMsTotal => _stepTimeMs.values.fold(0, (acc, v) => acc + v);
 
   // Raw input listening
-  final FocusNode _rawFocus = FocusNode();
   final Map<TextEditingController, String> _prevText = {};
   final Map<TextEditingController, Timer> _debouncers = {};
   final Map<TextEditingController, int> _lastLoggedLen = {};
   bool _suspendTextLogging = false;
   final Map<TextEditingController, String> _lastLoggedText = {};
-
-  // Heartbeat & event buffer
-  Timer? _heartbeatTimer;
-  final List<Map<String, dynamic>> _eventBuffer = [];
-  Timer? _flushTimer;
-  static const int _bufferMax = 25;
-  static const Duration _flushInterval = Duration(seconds: 5);
-
-  // Throttle touch logging
-  DateTime? _lastTouchTs;
-  static const int _touchThrottleMs = 300;
 
   // 현재 세션에서 추가된 칩들을 추적하는 Set들
   final Set<String> _currentSessionAChips = {};
@@ -122,18 +100,10 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
   final Set<String> _currentSessionCEmotionChips = {};
   final Set<String> _currentSessionCBehaviorChips = {};
 
-  final TextEditingController _customSymptomController =
-      TextEditingController();
-
-  // Emotion and behavior lists for C-step
-  final TextEditingController _customEmotionController =
-      TextEditingController();
-
-  // Controllers for custom keyword dialogs
-  final TextEditingController _customAKeywordController =
-      TextEditingController();
-  final TextEditingController _customBKeywordController =
-      TextEditingController();
+  final TextEditingController _customSymptomController = TextEditingController();
+  final TextEditingController _customEmotionController = TextEditingController();
+  final TextEditingController _customAKeywordController = TextEditingController();
+  final TextEditingController _customBKeywordController = TextEditingController();
 
   // 1. 신체증상 전용 칩
   final List<GridItem> _physicalChips = [
@@ -147,10 +117,8 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
     GridItem(label: '두려움'),
     GridItem(label: '+ 추가', isAdd: true),
   ];
-  // Emotion labels for filtering C-2 chips in feedback
   final Set<int> _selectedEmotion = {};
 
-  // 3. 행동 전용 칩
   late List<GridItem> _behaviorChips;
   final Set<int> _selectedBehavior = {};
   final TextEditingController _addCGridController = TextEditingController();
@@ -158,7 +126,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
   // 1. 칩 데이터 및 선택 상태 추가
   final List<GridItem> _aGridChips = [
     GridItem(label: '자전거 타기'),
-    GridItem(label: ' + 추가', isAdd: true),
+    GridItem(label: '+ 추가', isAdd: true),
   ];
   final Set<int> _selectedAGrid = {};
 
@@ -168,18 +136,23 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
   ];
   final Set<int> _selectedBGrid = {};
 
-  // 사용자 정의 칩 저장 함수
+  // 사용자 정의 칩 저장 함수 (중복 방지: (type,label) 키로 단일 문서만)
   Future<void> _saveCustomChip(String type, String label) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
     try {
-      await _chipsRef(user.uid).add({
-        'type': type, // 'A', 'B', 'C-physical', 'C-emotion', 'C-behavior'
+      // Use a stable document ID per (type,label) so the same chip never creates duplicates
+      final docId = '${type}_$label';
+      await _chipsRef(user.uid).doc(docId).set({
+        'type': type,
         'label': label,
         'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
         'is_deleted': false,
-      });
+        // Ensure the field exists; no-op increment when first created
+        'count': FieldValue.increment(0),
+      }, SetOptions(merge: true));
     } catch (e) {
       debugPrint('칩 저장 실패: $e');
     }
@@ -264,24 +237,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
       }
     } catch (e) {
       debugPrint('칩 불러오기 실패: $e');
-    }
-  }
-
-  // 현재 세션에서 추가된 칩인지 확인하는 함수
-  bool _isCurrentSessionChip(String type, String label) {
-    switch (type) {
-      case 'A':
-        return _currentSessionAChips.contains(label);
-      case 'B':
-        return _currentSessionBChips.contains(label);
-      case 'C-physical':
-        return _currentSessionCPhysicalChips.contains(label);
-      case 'C-emotion':
-        return _currentSessionCEmotionChips.contains(label);
-      case 'C-behavior':
-        return _currentSessionCBehaviorChips.contains(label);
-      default:
-        return false;
     }
   }
 
@@ -448,15 +403,9 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
     if (_isEditing) {
       _loadExistingAbc();
     }
+    _resetIdleTimer();
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (!_didInit) {
-      _didInit = true;
-    }
-  }
 
   void _nextStep() {
     final fromKey = _currentStepKey();
@@ -513,10 +462,25 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.inactive || state == AppLifecycleState.paused) {
-      _pauseSession('app_background');
-      // _markAbandoned('app_background');
+      // 즉시 카운트 마감 + 일시정지, 복귀 없으면 이탈 예약
+      if (!_isPaused) {
+        _bumpStepTimeToNow(_currentStepKey());
+        _isPaused = true;
+      }
+      _bgAbandonTimer?.cancel();
+      _bgAbandonTimer = Timer(_bgAbandonTimeout, () {
+        _bumpStepTimeToNow(_currentStepKey());
+        _isPaused = true;
+        _markAbandoned('app_background');
+      });
     } else if (state == AppLifecycleState.resumed) {
-      _resumeSession();
+      if (_isPaused) {
+        _isPaused = false;
+        _stepEnteredAt = DateTime.now();
+      }
+      _bgAbandonTimer?.cancel();
+      _resetIdleTimer();
+      _maybeResumeAbandoned();
     }
   }
 
@@ -597,6 +561,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                           // 현재 세션에 추가된 칩으로 추적
                           _addToCurrentSession('A', val);
                         });
+                        _resetIdleTimer();
                         _suspendTextLogging = true;
                         _customAKeywordController.clear();
                         _prevText[_customAKeywordController] = '';
@@ -705,6 +670,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                           // 현재 세션에 추가된 칩으로 추적
                           _addToCurrentSession('B', val);
                         });
+                        _resetIdleTimer();
                         _suspendTextLogging = true;
                         _customBKeywordController.clear();
                         _prevText[_customBKeywordController] = '';
@@ -752,7 +718,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'C-1. 신체 증상',
+                    'C1. 신체 증상',
                     style: TextStyle(
                       fontSize: 20,
                       color: Colors.indigo,
@@ -763,11 +729,9 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 18),
-                  // Combine input box and first suffix on one line, then break
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // White input box
                           Container(
                             decoration: BoxDecoration(
                               color: Colors.white,
@@ -781,7 +745,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                             child: TextField(
                               controller: _customSymptomController,
                               decoration: const InputDecoration(
-                                // hintText: '예: 가슴 두근거림',
                                 border: InputBorder.none,
                                 isDense: true,
                               ),
@@ -809,9 +772,9 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                             _physicalChips.length - 1,
                             GridItem(label: value, isAdd: true),
                           );
-                          // 현재 세션에 추가된 칩으로 추적
                           _addToCurrentSession('C-physical', value);
                         });
+                        _resetIdleTimer();
                         _suspendTextLogging = true;
                         _customSymptomController.clear();
                         _prevText[_customSymptomController] = '';
@@ -860,7 +823,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'C-2. 감정',
+                    'C2. 감정',
                     style: TextStyle(
                       fontSize: 20,
                       color: Colors.indigo,
@@ -871,11 +834,9 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 18),
-                  // Combine input box and first suffix on one line, then break
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // White input box
                           Container(
                             decoration: BoxDecoration(
                               color: Colors.white,
@@ -889,7 +850,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                             child: TextField(
                               controller: _customEmotionController,
                               decoration: const InputDecoration(
-                                // hintText: '예: 두려움',
                                 border: InputBorder.none,
                                 isDense: true,
                               ),
@@ -907,7 +867,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                     onPressed: () {
                       final val = _customEmotionController.text.trim();
                       if (val.isNotEmpty) {
-                        // 중복 체크
                         if (_isDuplicateChip('C-emotion', val)) {
                           _showDuplicateAlert(context);
                           return;
@@ -917,9 +876,9 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                             _emotionChips.length - 1,
                             GridItem(label: val, isAdd: true),
                           );
-                          // 현재 세션에 추가된 칩으로 추적
                           _addToCurrentSession('C-emotion', val);
                         });
+                        _resetIdleTimer();
                         _suspendTextLogging = true;
                         _customEmotionController.clear();
                         _prevText[_customEmotionController] = '';
@@ -949,63 +908,70 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
           ),
     );
   }
+  void _resetIdleTimer() {
+    _idleTimer?.cancel();
+    _idleTimer = Timer(_idleTimeout, () {
+      // 무활동 타임아웃 → 일시정지로 전환 후 이탈 기록
+      _bumpStepTimeToNow(_currentStepKey());
+      _isPaused = true;
+      _markAbandoned('inactive_timeout');
+    });
+  }
 
+  void _cancelTimers() {
+    _idleTimer?.cancel();
+    _bgAbandonTimer?.cancel();
+  }
+
+  Future<void> _maybeResumeAbandoned() async {
+    try {
+      if (_sessionCompleted || _sessionId == null) return;
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) return;
+
+      final docRef = FirebaseFirestore.instance
+          .collection('chi_users').doc(uid)
+          .collection('abc_sessions').doc(_sessionId);
+      final snap = await docRef.get();
+      final data = snap.data();
+      if (data == null) return;
+
+      final status = data['status'];
+      final reason = data['reason'];
+      if (status == 'abandoned' && (reason == 'app_background' || reason == 'inactive_timeout')) {
+        await docRef.set({'status': 'in_progress'}, SetOptions(merge: true));
+      }
+    } catch (e) {
+      debugPrint('세션 재개 처리 실패: $e');
+    }
+  }
   @override
   Widget build(BuildContext context) {
     return PopScope(
       canPop: true,
       onPopInvokedWithResult: (didPop, result) {
-        if (didPop) {
-          _logEvent('system_back', {
-            'step': _currentStep,
-            'cSubStep': _currentCSubStep,
-          });
-          _markAbandoned('system_back');
-        }
+          if (didPop) {
+        _markAbandoned('page_back');
+      }
       },
       child: AspectViewport(
         aspect: 9 / 16,
         background: Colors.grey.shade100,
         child: Scaffold(
           backgroundColor: Colors.grey.shade100,
-          appBar: CustomAppBar(title: _isEditing ? '일기 수정' : '일기 쓰기'),
+          appBar: CustomAppBar(
+            title: _isEditing ? '일기 수정' : '일기 쓰기',
+            confirmOnBack: true,
+            confirmOnHome: true,
+          ),
           body: MediaQuery(
             data: MediaQuery.of(context).copyWith(textScaler: const TextScaler.linear(1)),
             child: SafeArea(
-              child: KeyboardListener(
-                focusNode: _rawFocus,
-                onKeyEvent: (KeyEvent event) {
-                  if (event is KeyDownEvent) {
-                    _keyPresses++;
-                    final isBackspace = event.logicalKey == LogicalKeyboardKey.backspace;
-                    if (isBackspace) {
-                      _logEvent('key', {
-                        'logicalKey': event.logicalKey.keyLabel,
-                        'backspace': true,
-                      });
-                    }
-                  }
-                },
-                child: Listener(
-                  behavior: HitTestBehavior.deferToChild,
-                  onPointerDown: (e) {
-                    final now = DateTime.now();
-                    if (_lastTouchTs == null ||
-                        now.difference(_lastTouchTs!).inMilliseconds > _touchThrottleMs) {
-                      _touches++;
-                      _logEvent('touch', {'x': e.position.dx, 'y': e.position.dy});
-                      _lastTouchTs = now;
-                    } else {
-                      _touches++;
-                    }
-                  },
-                  child: _buildMainContent(),
-                ),
-              ),
+              child: _buildMainContent(),
             ),
           ),
           bottomNavigationBar: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+            padding: const EdgeInsets.all(16),
             child: NavigationButtons(
               leftLabel: '이전',
               rightLabel: _currentStep < 2
@@ -1013,7 +979,8 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                   : (_currentCSubStep < 2 ? '다음' : (_isEditing ? '수정' : '저장')),
               onBack: () {
                 if (_currentStep == 0) {
-                  _markAbandoned('disopse_without_save');
+                  _markAbandoned('page_back');
+                  _cancelTimers();
                   Navigator.pop(context);
                 } else if (_currentStep == 2 && _currentCSubStep > 0) {
                   setState(() => _currentCSubStep--);
@@ -1043,107 +1010,69 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
 
   Widget _buildMainContent() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 24),
-          // 2. A-B-C 인디케이터 (가로선 포함)
-          _buildAbcStepIndicator(),
-          const SizedBox(height: 24),
-          // 3. 단계별 질문/입력 UI
+          _buildChipSummary(),
+          const SizedBox(height: 32),
           _buildStepContent(),
         ],
       ),
     );
   }
 
-  // 인디케이터(가로선 포함)
-  Widget _buildAbcStepIndicator() {
-    List<String> labels = ['A', 'B', 'C'];
-    List<String> titles = ['상황', '생각', '결과'];
-    List<String> descriptions = [
-      '반응을 유발하는 사건이나 상황',
-      '사건에 대한 해석이나 생각',
-      '결과로 나타나는 감정이나 행동',
-    ];
+  Widget _buildChipSummary() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          '선택한 칩을 기반으로한 작성된 일기 입니다.',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        ),
+        const SizedBox(height: 16),
+        _buildFeedbackContent()
+      ],
+    );
+  }
+
+  Widget _buildFeedbackContent() {
+    final situation = _selectedAGrid.map((i) => _aGridChips[i].label).join(', ');
+    final thought = _selectedBGrid.map((i) => _bGridChips[i].label).join(', ');
+    final emotionList = _selectedEmotion.map((i) => _emotionChips[i].label).toList();
+    final physicalList = _selectedPhysical.map((i) => _physicalChips[i].label).toList();
+    final behaviorList = _selectedBehavior.map((i) => _behaviorChips[i].label).toList();
+
     return Card(
-      elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-      color: Colors.indigo.shade50,
-      margin: const EdgeInsets.only(bottom: 8),
+      color: Colors.white,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: const BorderSide(color: Colors.black, width: 1),
+      ),
+      margin: const EdgeInsets.all(0),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: List.generate(5, (i) {
-            if (i % 2 == 1) {
-              // Horizontal line between steps - always active color
-              return Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 24),
-                  child: Container(height: 2, color: AppColors.indigo),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                "오늘 나는 '$situation' (이)라는 일이 있었다.\n"
+                "그 상황에서 나는'$thought' (이)라는 생각이 떠올랐고, "
+                "몸에서 '${physicalList.join("', '")}' (이)라는 변화가 있었다.\n"
+                "그 순간 '${emotionList.join("', '")}' (이)라는 감정을 느꼈고, "
+                "나는 '${behaviorList.join("', '")}' (이)라는 행동을 했다.",
+                style: const TextStyle(
+                  fontSize: 16,
+                  color: Colors.black,
                 ),
-              );
-            } else {
-              int idx = i ~/ 2;
-              final isActive = _currentStep == idx;
-              return Expanded(
-                flex: 2,
-                child: Column(
-                  children: [
-                    Container(
-                      width: isActive ? 64 : 48,
-                      height: isActive ? 64 : 48,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color:
-                            isActive ? AppColors.indigo : Colors.grey.shade300,
-                        boxShadow:
-                            isActive
-                                ? [
-                                  BoxShadow(
-                                    color: AppColors.indigo.withValues(
-                                      alpha: 0.18,
-                                    ),
-                                    blurRadius: 12,
-                                    offset: Offset(0, 4),
-                                  ),
-                                ]
-                                : [],
-                      ),
-                      child: Center(
-                        child: Text(
-                          labels[idx],
-                          style: TextStyle(
-                            color: isActive ? Colors.white : Colors.grey[600],
-                            fontWeight: FontWeight.bold,
-                            fontSize: isActive ? 22 : 20,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      titles[idx],
-                      style: TextStyle(
-                        color: isActive ? AppColors.indigo : Colors.grey[600],
-                        fontWeight:
-                            isActive ? FontWeight.bold : FontWeight.normal,
-                        fontSize: 15,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      descriptions[idx],
-                      style: const TextStyle(color: Colors.black, fontSize: 12),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              );
-            }
-          }),
+                textAlign: TextAlign.left,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -1168,7 +1097,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'A. 오늘 있었던 기억에 남는 일은 무엇인가요?\n     한 가지만 작성해 주세요.',
+          '오늘 있었던 기억에 남는 일은 무엇인가요? (A. 상황)',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
         const SizedBox(height: 8),
@@ -1189,7 +1118,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                     backgroundColor: AppColors.indigo50,
                     side: BorderSide(color: AppColors.indigo.shade100, width: 1),
                     onPressed: _addAKeyword,
-                    // onPressed: widget.isExampleMode ? null : _addAKeyword,
                     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,
@@ -1215,17 +1143,8 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                     isSelected
                         ? _selectedAGrid.remove(i)
                         : _selectedAGrid.add(i);
-                    // if (!isSelected && item.isAdd) {
-                    //   _bumpCustomChipCount('A', item.label);
-                    // }
-                    _logEvent('chip_toggle', {
-                      'section': 'A',
-                      'label': item.label,
-                      'selected': !isSelected,
-                      'origin': _isCurrentSessionChip('A', item.label) ? 'custom' : 'preset',
-                    });
                     _chipToggles++;
-                  });
+                  }); _resetIdleTimer();
                 },
                 showCheckmark: false,
                 selectedColor: AppColors.indigo,
@@ -1255,7 +1174,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'B. 그 상황에서 어떤 생각이 떠올랐나요?',
+          '그 상황에서 어떤 생각이 떠올랐나요? (B. 생각)',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
         const SizedBox(height: 8),
@@ -1272,7 +1191,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                 backgroundColor: AppColors.indigo50,
                 side: BorderSide(color: AppColors.indigo.shade100, width: 1),
                 onPressed: _addBKeyword,
-                // onPressed: widget.isExampleMode ? null : _addBKeyword,
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               );
@@ -1293,17 +1211,8 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                     isSelected
                         ? _selectedBGrid.remove(i)
                         : _selectedBGrid.add(i);
-                    // if (!isSelected && item.isAdd) {
-                    //   _bumpCustomChipCount('B', item.label);
-                    // }
-                    _logEvent('chip_toggle', {
-                      'section': 'B',
-                      'label': item.label,
-                      'selected': !isSelected,
-                      'origin': _isCurrentSessionChip('B', item.label) ? 'custom' : 'preset',
-                    });
                     _chipToggles++;
-                  });
+                  }); _resetIdleTimer();
                 },
                 showCheckmark: false,
                 selectedColor: AppColors.indigo,
@@ -1335,7 +1244,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'C-1. 그때 몸에서 어떤 변화가 있었나요?',
+              '그때 몸에서 어떤 변화가 있었나요? (C1. 신체증상)',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
             const SizedBox(height: 8),
@@ -1347,7 +1256,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'C-2. 그 순간 어떤 감정을 느꼈나요?',
+              '그 순간 어떤 감정을 느꼈나요? (C2. 감정)',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
             const SizedBox(height: 8),
@@ -1359,7 +1268,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'C-3. 그래서 어떤 행동을 했나요?',
+              '그래서 어떤 행동을 했나요? (C3. 행동)',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
             const SizedBox(height: 8),
@@ -1405,17 +1314,8 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                 isSelected
                     ? _selectedPhysical.remove(i)
                     : _selectedPhysical.add(i);
-                // if (!isSelected && item.isAdd) {
-                //   _bumpCustomChipCount('C-physical', item.label);
-                // }
-                _logEvent('chip_toggle', {
-                  'section': 'C1',
-                  'label': item.label,
-                  'selected': !isSelected,
-                  'origin': _isCurrentSessionChip('C-physical', item.label) ? 'custom' : 'preset',
-                });
                 _chipToggles++;
-              });
+              }); _resetIdleTimer();
             },
             showCheckmark: false,
             selectedColor: AppColors.indigo,
@@ -1472,17 +1372,8 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                 isSelected
                     ? _selectedEmotion.remove(i)
                     : _selectedEmotion.add(i);
-                // if (!isSelected && item.isAdd) {
-                //   _bumpCustomChipCount('C-emotion', item.label);
-                // }
-                _logEvent('chip_toggle', {
-                  'section': 'C2',
-                  'label': item.label,
-                  'selected': !isSelected,
-                  'origin': _isCurrentSessionChip('C-emotion', item.label) ? 'custom' : 'preset',
-                });
                 _chipToggles++;
-              });
+              }); _resetIdleTimer();
             },
             showCheckmark: false,
             selectedColor: AppColors.indigo,
@@ -1519,7 +1410,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
             backgroundColor: AppColors.indigo50,
             side: BorderSide(color: AppColors.indigo.shade100, width: 1),
             onPressed: _showAddCGridDialog,
-            // onPressed: widget.isExampleMode ? null : _showAddCGridDialog,
             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
           );
@@ -1540,17 +1430,8 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                 isSelected
                     ? _selectedBehavior.remove(i)
                     : _selectedBehavior.add(i);
-                // if (!isSelected && item.isAdd) {
-                //   _bumpCustomChipCount('C-behavior', item.label);
-                // }
-                _logEvent('chip_toggle', {
-                  'section': 'C3',
-                  'label': item.label,
-                  'selected': !isSelected,
-                  'origin': _isCurrentSessionChip('C-behavior', item.label) ? 'custom' : 'preset',
-                });
                 _chipToggles++;
-              });
+              }); _resetIdleTimer();
             },
             showCheckmark: false,
             selectedColor: AppColors.indigo,
@@ -1591,7 +1472,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'C-3. 행동',
+                    'C3. 행동',
                     style: TextStyle(
                       fontSize: 20,
                       color: Colors.indigo,
@@ -1602,11 +1483,9 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 18),
-                  // Combine input box and first suffix on one line, then break
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // White input box
                           Container(
                             decoration: BoxDecoration(
                               color: Colors.white,
@@ -1620,7 +1499,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                             child: TextField(
                               controller: _addCGridController,
                               decoration: const InputDecoration(
-                                // hintText: '예: 자전거 끌고가기',
                                 border: InputBorder.none,
                                 isDense: true,
                               ),
@@ -1638,7 +1516,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                     onPressed: () {
                       final value = _addCGridController.text.trim();
                       if (value.isNotEmpty) {
-                        // 중복 체크
                         if (_isDuplicateChip('C-behavior', value)) {
                           _showDuplicateAlert(context);
                           return;
@@ -1648,9 +1525,9 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                             _behaviorChips.length - 1,
                             GridItem(label: value, isAdd: true),
                           );
-                          // 현재 세션에 추가된 칩으로 추적
                           _addToCurrentSession('C-behavior', value);
                         });
+                        _resetIdleTimer();
                         _suspendTextLogging = true;
                         _addCGridController.clear();
                         _prevText[_addCGridController] = '';
@@ -1681,7 +1558,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
     );
   }
 
-  // 중복 체크 함수 추가
   bool _isDuplicateChip(String type, String label) {
     switch (type) {
       case 'A':
@@ -1722,7 +1598,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
     }
     final idx = list.indexWhere((c) => c.label == label);
     if (idx == -1) return false;
-    return list[idx].isAdd == true; // 사용자 정의 칩만 true
+    return list[idx].isAdd == true;
   }
 
   // 중복 알림 다이얼로그 표시
@@ -1751,21 +1627,21 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    // 현재 사용자 커스텀 칩 목록(기존 저장본) 조회
+    // 현재 사용자 커스텀 칩 목록(기존 저장본) 조회 (문서당 유일키를 문자열로 구성)
     final snapshot = await _chipsRef(user.uid).get();
-    final existing = snapshot.docs
-        .map((doc) => {'type': doc['type'], 'label': doc['label']})
-        .toSet();
+    final existingKeys = snapshot.docs.map((doc) {
+      final data = doc.data();
+      return '${data['type']}_${data['label']}';
+    }).toSet();
 
     Future<void> saveIfNew(String type, String label) async {
-      final key = {'type': type, 'label': label};
-      if (!existing.contains(key)) {
+      final key = '${type}_$label';
+      if (!existingKeys.contains(key)) {
         await _saveCustomChip(type, label);
-        existing.add(key);
+        existingKeys.add(key);
       }
     }
 
-    // ✅ 이번 세션에서 "추가" 버튼으로 새로 만든 칩들만 저장
     for (final label in _currentSessionAChips) {
       await saveIfNew('A', label);
     }
@@ -1783,13 +1659,11 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
     }
   }
 
-  // Adjusts index-based selections after a chip is removed
   void _adjustSelectionAfterRemoval(Set<int> selectedSet, int removedIndex) {
     if (selectedSet.isEmpty) return;
     final updated = <int>{};
     for (final idx in selectedSet) {
       if (idx == removedIndex) {
-        // drop the removed index
       } else if (idx > removedIndex) {
         updated.add(idx - 1);
       } else {
@@ -1805,8 +1679,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
   Future<void> _deleteCustomChip(String type, String label, int index) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
-
-    // Firestore: soft delete any custom chip doc with matching type+label (set is_deleted: true)
     try {
       final query = await _chipsRef(user.uid)
           .where('type', isEqualTo: type)
@@ -1897,7 +1769,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
             TextButton(
               child: Text('확인'),
               onPressed: () async {
-                // String savedAbcId;
                 if (_isEditing) {
                   // 편집: 기존 문서에 덮어쓰기 (백업은 onEdit에서 수행)
                   final docRef = firestore
@@ -1912,7 +1783,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                     'completedAt': FieldValue.serverTimestamp(),
                   };
                   await docRef.set(payload, SetOptions(merge: true));
-                  // savedAbcId = widget.abcId!;
                 } else {
                   // 신규: 시퀀스 ID로 생성
                   final newId = await _nextSequencedDocId(userId, 'abc_models');
@@ -1925,12 +1795,9 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                         ...baseData,
                         'startedAt'  : widget.startedAt,
                         'completedAt': FieldValue.serverTimestamp(),
-                        'report'     : null,   // ✅ report 필드 추가
+                        'report'     : null, 
                       });
-                  // savedAbcId = newId;
                 }
-
-                // ✅ 최종 저장된 칩만, 그리고 커스텀 칩만 카운트 증가
                 for (final label in activatingEvent) {
                   if (_isCustomChip('A', label)) {
                     await _bumpCustomChipCount('A', label);
@@ -1960,9 +1827,9 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                 await _saveSelectedChipsToFirestore();
 
                 // 세션 완료 처리: 누적 시간/카운터 반영 및 이벤트 버퍼 플러시
+                _cancelTimers(); 
                 final fromKey = _currentStepKey();
                 _bumpStepTimeToNow(fromKey);
-                await _flushEvents();
 
                 if (_sessionId != null) {
                   await firestore
@@ -1977,28 +1844,13 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                     'durationMs': widget.startedAt != null
                         ? DateTime.now().millisecondsSinceEpoch - widget.startedAt!.millisecondsSinceEpoch
                         : null,
-                    'keyPresses': _keyPresses,
-                    'touches': _touches,
-                    'textChanges': _textChanges,
                     'chipToggles': _chipToggles,
-                    'stepTimeMs': _stepTimeMs,
+                    'pageTimeMs': _pageTimeMsTotal,
                   }, SetOptions(merge: true));
-                  await _logEvent('session_completed', {});
-                  await _flushEvents();
                 }
                 _sessionCompleted = true;
 
                 if (!context.mounted) return;
-                // Navigator.push(
-                //   context,
-                //   MaterialPageRoute(
-                //     builder: (_) => AbcCompleteScreen(
-                //       userId: userId, 
-                //       abcId: savedAbcId,
-                //       fromAbcInput: true,
-                //     )
-                //   )
-                // );
                 Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
               },
             ),
@@ -2049,83 +1901,13 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
         'startedAt': widget.startedAt ?? FieldValue.serverTimestamp(),
       });
       _sessionId = newSessionId;
-
-      _eventBuffer.clear();
-      _flushTimer?.cancel();
-      _flushTimer = Timer.periodic(_flushInterval, (_) => _flushEvents());
-
-      _heartbeatTimer?.cancel();
-      _heartbeatTimer = Timer.periodic(const Duration(seconds: 15), (_) async {
-        final u = FirebaseAuth.instance.currentUser?.uid;
-        if (u == null || _sessionId == null) return;
-        await FirebaseFirestore.instance
-            .collection('chi_users')
-            .doc(u)
-            .collection('abc_sessions')
-            .doc(_sessionId)
-            .set({'heartbeatAt': FieldValue.serverTimestamp()}, SetOptions(merge: true));
-      });
-
-      await _logEvent('session_start', {
-        'step': _currentStep,
-        'cSubStep': _currentCSubStep,
-      });
     } catch (e) {
       debugPrint('세션 시작 실패: $e');
     }
   }
 
-  Future<void> _enqueueEvent(String type, Map<String, dynamic> data) async {
-    if (_sessionId == null) return;
-    final seq = ++_eventSeq; // 1부터 증가
-    _eventBuffer.add({
-      'seq': seq,
-      'type': type,
-      'ts': FieldValue.serverTimestamp(),
-      'step': _currentStep,
-      'cSubStep': _currentCSubStep,
-      ...data,
-    });
-    if (_eventBuffer.length >= _bufferMax) {
-      await _flushEvents();
-    }
-  }
-
-  Future<void> _flushEvents() async {
-    try {
-      final uid = FirebaseAuth.instance.currentUser?.uid;
-      if (uid == null || _sessionId == null) return;
-      if (_eventBuffer.isEmpty) return;
-
-      final toWrite = List<Map<String, dynamic>>.from(_eventBuffer);
-      _eventBuffer.clear();
-
-      final base = FirebaseFirestore.instance
-          .collection('chi_users')
-          .doc(uid)
-          .collection('abc_sessions')
-          .doc(_sessionId)
-          .collection('events');
-
-      final batch = FirebaseFirestore.instance.batch();
-      for (final ev in toWrite) {
-        final int seq = ev['seq'] as int;
-        final String id = seq.toString().padLeft(6, '0'); // 000001, 000002, ...
-        final doc = base.doc(id);
-        batch.set(doc, ev);
-      }
-      await batch.commit();
-    } catch (e) {
-      debugPrint('이벤트 배치 기록 실패: $e');
-    }
-  }
-
-  Future<void> _logEvent(String type, Map<String, dynamic> data) async {
-    await _enqueueEvent(type, data);
-  }
-
   void _attachTextWatchers() {
-    void watch(String field, TextEditingController c) {
+    void watch(TextEditingController c) {
       // Initialize baselines for this controller
       _prevText[c] = c.text;
       _lastLoggedLen[c] = c.text.length;
@@ -2145,19 +1927,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
 
         // --- Approximate key press counting from text delta (works with soft keyboard & in dialogs) ---
         if (newText != oldText) {
-          final d = newText.length - oldText.length;
-          final presses = d.abs();
-          if (presses > 0) {
-            _keyPresses += presses;
-          }
-          // Fallback backspace logging when Raw/KeyboardListener won't fire (mobile IME, dialog focus)
-          if (d < 0) {
-            _logEvent('key', {
-              'logicalKey': 'Backspace',
-              'backspace': true,
-              'count': -d,
-            });
-          }
+          _resetIdleTimer();
         }
 
         // Update instantaneous previous text baseline for per-change tracking
@@ -2171,42 +1941,25 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
           final lastLen = _lastLoggedLen[c] ?? curLen;
           final lastText = _lastLoggedText[c] ?? curText;
 
-          // Guard: ignore focus/composition updates that don't change the string
           if (curLen == lastLen && curText == lastText) {
             return;
           }
-
-          final deltaBatch = curLen - lastLen; // net change since last log
-          final deletionBatch = curLen < lastLen;
-
-          // Update baselines for next burst
           _lastLoggedLen[c] = curLen;
           _lastLoggedText[c] = curText;
-
-          // Count only debounced logical changes (not every keystroke)
-          _textChanges++;
-
-          _logEvent('text_change', {
-            'field': field,
-            'len': curLen,
-            'delta': deltaBatch,
-            'deletion': deletionBatch,
-          });
         });
       });
     }
 
-    watch('C1_customSymptom', _customSymptomController);
-    watch('C2_customEmotion', _customEmotionController);
-    watch('A_customKeyword', _customAKeywordController);
-    watch('B_customKeyword', _customBKeywordController);
-    watch('C3_customBehavior', _addCGridController);
+    watch(_customSymptomController);
+    watch(_customEmotionController);
+    watch(_customAKeywordController);
+    watch(_customBKeywordController);
+    watch(_addCGridController);
   }
 
   Future<void> _onStepChange(String fromKey, String toKey) async {
     if (fromKey != toKey) {
       _bumpStepTimeToNow(fromKey);
-      await _logEvent('step_change', {'from': fromKey, 'to': toKey});
     }
   }
 
@@ -2217,7 +1970,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
       if (uid == null) return;
 
       _bumpStepTimeToNow(_currentStepKey());
-      await _flushEvents();
 
       await FirebaseFirestore.instance
           .collection('chi_users')
@@ -2230,17 +1982,18 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
         'endedAt': FieldValue.serverTimestamp(),
         'durationMs': widget.startedAt != null
             ? DateTime.now().millisecondsSinceEpoch - widget.startedAt!.millisecondsSinceEpoch
-            : null,        
+            : null,
         'reason': reason,
-        'keyPresses': _keyPresses,
-        'touches': _touches,
-        'textChanges': _textChanges,
+        'checkStates': {
+          'A': _selectedAGrid.isNotEmpty,
+          'B': _selectedBGrid.isNotEmpty,
+          'C1': _selectedPhysical.isNotEmpty,
+          'C2': _selectedEmotion.isNotEmpty,
+          'C3': _selectedBehavior.isNotEmpty,
+        },
         'chipToggles': _chipToggles,
-        'stepTimeMs': _stepTimeMs,
+        'pageTimeMs': _pageTimeMsTotal,
       }, SetOptions(merge: true));
-
-      await _logEvent('session_abandoned', {'reason': reason});
-      await _flushEvents();
     } catch (e) {
       debugPrint('세션 중도이탈 기록 실패: $e');
     }
@@ -2249,76 +2002,11 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _heartbeatTimer?.cancel();
-    _flushTimer?.cancel();
-    _rawFocus.dispose();
+    _cancelTimers();
     for (final t in _debouncers.values) {
       t.cancel();
     }
-    _flushEvents();
     _markAbandoned('dispose_without_save');
     super.dispose();
-  }
-
-    Future<void> _pauseSession(String reason) async {
-    try {
-      if (_sessionCompleted || _sessionId == null || _isPaused) return;
-      _isPaused = true;
-      _pausedAt = DateTime.now();
-
-      final uid = FirebaseAuth.instance.currentUser?.uid;
-      if (uid == null) return;
-
-      // Stop accumulating time while backgrounded
-      _bumpStepTimeToNow(_currentStepKey());
-      await _logEvent('session_paused', {'reason': reason});
-      await _flushEvents();
-
-      await FirebaseFirestore.instance
-          .collection('chi_users')
-          .doc(uid)
-          .collection('abc_sessions')
-          .doc(_sessionId)
-          .set({
-        'status': 'abandoned',
-        'screen': 'AbcInputScreen_chip/${_currentStepKey()}',
-        'stepTimeMs': _stepTimeMs,
-      }, SetOptions(merge: true));
-    } catch (e) {
-      debugPrint('세션 일시정지 실패: $e');
-    }
-  }
-
-  Future<void> _resumeSession() async {
-    try {
-      if (_sessionCompleted || _sessionId == null || !_isPaused) return;
-      _isPaused = false;
-
-      final uid = FirebaseAuth.instance.currentUser?.uid;
-      if (uid == null) return;
-
-      final pausedForMs = _pausedAt != null
-          ? DateTime.now().difference(_pausedAt!).inMilliseconds
-          : null;
-      _pausedAt = null;
-
-      // Reset step entry baseline so time after resume starts from now
-      _stepEnteredAt = DateTime.now();
-
-      await _logEvent('session_resumed', {
-        if (pausedForMs != null) 'pausedForMs': pausedForMs,
-      });
-
-      await FirebaseFirestore.instance
-          .collection('chi_users')
-          .doc(uid)
-          .collection('abc_sessions')
-          .doc(_sessionId)
-          .set({
-        'status': 'in_progress',
-      }, SetOptions(merge: true));
-    } catch (e) {
-      debugPrint('세션 재개 실패: $e');
-    }
   }
 }

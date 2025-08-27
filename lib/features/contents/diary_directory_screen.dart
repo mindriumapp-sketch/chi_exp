@@ -15,6 +15,7 @@ class AbcModel {
   final dynamic cPhysical;
   final dynamic cEmotion;
   final dynamic cBehavior;
+  final String? textDiary;
   final DateTime? completedAt;
   final DateTime? startedAt;
   final DateTime? updatedAt;
@@ -26,6 +27,7 @@ class AbcModel {
     required this.cPhysical,
     required this.cEmotion,
     required this.cBehavior,
+    required this.textDiary,
     required this.completedAt,
     required this.startedAt,
     required this.updatedAt,
@@ -54,6 +56,7 @@ class AbcModel {
       cPhysical: normalizeField(data['c1_physical']),
       cEmotion: normalizeField(data['c2_emotion']),
       cBehavior: normalizeField(data['c3_behavior']),
+      textDiary: (data['text_diary'] as String?)?.toString(),
       completedAt: parseDate(data['completedAt']),
       startedAt: parseDate(data['startedAt']),
       updatedAt: parseDate(data['updatedAt']),
@@ -181,6 +184,64 @@ class _AbcCard extends StatefulWidget {
 
 class _AbcCardState extends State<_AbcCard> {
   bool _expanded = false;
+
+  Widget _buildCardContent(AbcModel m) {
+    // If text diary exists and is not empty, render it directly
+    final td = m.textDiary?.trim();
+    if (td != null && td.isNotEmpty) {
+      return Text(
+        td,
+        style: const TextStyle(fontSize: 16, color: Colors.black),
+        textAlign: TextAlign.left,
+      );
+    }
+
+    String firstOrJoined(dynamic v) {
+      if (v == null) return '-';
+      if (v is List) {
+        final list = v.map((e) => e.toString().trim()).where((e) => e.isNotEmpty).toList();
+        if (list.isEmpty) return '-';
+        return list.first;
+      }
+      if (v is String) return v.trim().isEmpty ? '-' : v.trim();
+      return v.toString();
+    }
+
+    List<String> asList(dynamic v) {
+      if (v == null) return const [];
+      if (v is List) {
+        return v.map((e) => e.toString().trim()).where((e) => e.isNotEmpty).toList();
+      }
+      if (v is String) {
+        final t = v.trim();
+        return t.isEmpty ? const [] : [t];
+      }
+      return [v.toString()];
+    }
+
+    final situation = firstOrJoined(m.activatingEvent);
+    final thought = asList(m.belief).join(', ');
+    final physicalList = asList(m.cPhysical);
+    final emotionList = asList(m.cEmotion);
+    final behaviorList = asList(m.cBehavior);
+
+    final physicalStr = physicalList.isEmpty ? '-' : "'${physicalList.join("', '")}'";
+    final emotionStr = emotionList.isEmpty ? '-' : "'${emotionList.join("', '")}'";
+    final behaviorStr = behaviorList.isEmpty ? '-' : "'${behaviorList.join("', '")}'";
+
+    final text =
+        "오늘 나는 '$situation' (이)라는 일이 있었다.\n"
+        "그 상황에서 나는 '$thought' (이)라는 생각이 떠올랐고, "
+        "몸에서 $physicalStr (이)라는 변화가 있었다.\n"
+        "그 순간 $emotionStr (이)라는 감정을 느꼈고, "
+        "나는 $behaviorStr (이)라는 행동을 했다.";
+
+    return Text(
+      text,
+      style: const TextStyle(fontSize: 16, color: Colors.black),
+      textAlign: TextAlign.left,
+    );
+  }
 
   Future<void> _onEdit(AbcModel m) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
@@ -348,14 +409,6 @@ class _AbcCardState extends State<_AbcCard> {
     final titleDate = m.completedAt != null
         ? DateFormat('yyyy-MM-dd HH:mm').format(m.completedAt!)
         : '작성 날짜 없음';
-
-    String situationText = '-';
-    if (m.activatingEvent is List && (m.activatingEvent as List).isNotEmpty) {
-      situationText = (m.activatingEvent as List).first.toString();
-    } else if (m.activatingEvent is String) {
-      situationText = m.activatingEvent;
-    }
-
     return Column(
       children: [
         Container(
@@ -390,20 +443,10 @@ class _AbcCardState extends State<_AbcCard> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          situationText,
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w500,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
                           titleDate,
                           style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey.shade600,
+                            fontSize: 16,
+                            color: Colors.black,
                           ),
                         ),
                       ],
@@ -427,48 +470,9 @@ class _AbcCardState extends State<_AbcCard> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Divider(),
-                    SizedBox(
-                      child: Padding(
-                        padding: EdgeInsets.all(8),
-                          child: Column(
-                          children: [
-                            _sectionABox(m),
-                            const SizedBox(height: 16),
-                            _sectionBBox(m),
-                            const SizedBox(height: 16),
-                            _sectionCBox(m),
-                          ],
-                        ),
-                      )
-                    ),
                     const SizedBox(height: 8),
-                    // Align(
-                    //   alignment: Alignment.centerRight,
-                    //   child: ElevatedButton.icon(
-                    //     style: ElevatedButton.styleFrom(
-                    //       backgroundColor: AppColors.indigo,
-                    //       shape: RoundedRectangleBorder(
-                    //         borderRadius: BorderRadius.circular(10),
-                    //       ),
-                    //       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                    //     ),
-                    //     icon: const Icon(Icons.analytics, color: Colors.white, size: 20),
-                    //     label: const Text('리포트 보기',
-                    //         style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                    //     onPressed: () {
-                    //       final userId = FirebaseAuth.instance.currentUser?.uid;
-                    //       if (userId != null) {
-                    //         Navigator.push(
-                    //           context,
-                    //           MaterialPageRoute(
-                    //             builder: (_) => AbcCompleteScreen(userId: userId, abcId: m.id),
-                    //           ),
-                    //         );
-                    //       }
-                    //     },
-                    //   ),
-                    // ),
-                    // const SizedBox(height: 8),
+                    _buildCardContent(m),
+                    const SizedBox(height: 8),
                   ],
                 ),
                 crossFadeState: _expanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
@@ -478,229 +482,6 @@ class _AbcCardState extends State<_AbcCard> {
           ),
         ),
       ],
-    );
-  }
-
-  // 🔹 헬퍼 위젯들
-
-  Widget _sectionCBox(AbcModel m) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Circle badge 'C'
-        CircleAvatar(
-          backgroundColor: Colors.indigo.shade500,
-          radius: 20,
-          child: const Text(
-            'C',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 20,
-            ),
-          ),
-        ),
-        const SizedBox(width: 10),
-        // Right content
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 신체
-              const Row(
-                children: [
-                  SizedBox(width: 4),
-                  Text(
-                    '신체 증상',
-                    style: TextStyle(
-                      color: Colors.indigo,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: _chipWidgets(m.cPhysical),
-              ),
-
-              const SizedBox(height: 10),
-
-              // 감정
-              const Row(
-                children: [
-                  SizedBox(width: 4),
-                  Text(
-                    '감정',
-                    style: TextStyle(
-                      color: Colors.indigo,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: _chipWidgets(m.cEmotion),
-              ),
-
-              const SizedBox(height: 10),
-
-              // 행동
-              const Row(
-                children: [
-                  SizedBox(width: 4),
-                  Text(
-                    '행동',
-                    style: TextStyle(
-                      color: Colors.indigo,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: _chipWidgets(m.cBehavior),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  // A 섹션 (상황) — AbcCompact 스타일
-  Widget _sectionABox(AbcModel m) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        CircleAvatar(
-          backgroundColor: Colors.indigo.shade100,
-          radius: 20,
-          child: const Text(
-            'A',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 20,
-            ),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                '상황',
-                style: TextStyle(
-                  color: Colors.indigo,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 14,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: _chipWidgets(m.activatingEvent),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  // B 섹션 (생각) — AbcCompact 스타일
-  Widget _sectionBBox(AbcModel m) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        CircleAvatar(
-          backgroundColor: Colors.indigo.shade300,
-          radius: 20,
-          child: const Text(
-            'B',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 20,
-            ),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                '생각',
-                style: TextStyle(
-                  color: Colors.indigo,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 14,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: _chipWidgets(m.belief),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  // 공용: dynamic 값을 칩 위젯 리스트로 변환
-  List<Widget> _chipWidgets(dynamic v) {
-    if (v == null) return [const Text('-')];
-    if (v is String) {
-      final t = v.trim();
-      return t.isEmpty ? [const Text('-')] : [_autoChipBox(t)];
-    }
-    if (v is List) {
-      final list = v
-          .map((e) => e.toString().trim())
-          .where((e) => e.isNotEmpty)
-          .toList();
-      return list.isEmpty
-          ? [const Text('-')]
-          : list.map((chip) => _autoChipBox(chip)).toList();
-    }
-    return [const Text('-')];
-  }
-
-  Widget _autoChipBox(String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.black12, width: 1),
-      ),
-      child: Text(
-        text,
-        style: const TextStyle(
-          color: Colors.black,
-          fontWeight: FontWeight.w500,
-          fontSize: 14,
-          fontFamily: 'Pretendard',
-        ),
-      ),
     );
   }
 }
