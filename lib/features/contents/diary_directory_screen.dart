@@ -53,8 +53,8 @@ class AbcModel {
       id: doc.id,
       activatingEvent: normalizeField(data['activatingEvent']),
       belief: normalizeField(data['belief']),
-      cPhysical: normalizeField(data['c1_physical']),
-      cEmotion: normalizeField(data['c2_emotion']),
+      cEmotion: normalizeField(data['c1_emotion']),
+      cPhysical: normalizeField(data['c2_physical']),
       cBehavior: normalizeField(data['c3_behavior']),
       textDiary: (data['text_diary'] as String?)?.toString(),
       completedAt: parseDate(data['completedAt']),
@@ -186,7 +186,6 @@ class _AbcCardState extends State<_AbcCard> {
   bool _expanded = false;
 
   Widget _buildCardContent(AbcModel m) {
-    // If text diary exists and is not empty, render it directly
     final td = m.textDiary?.trim();
     if (td != null && td.isNotEmpty) {
       return Text(
@@ -194,17 +193,6 @@ class _AbcCardState extends State<_AbcCard> {
         style: const TextStyle(fontSize: 16, color: Colors.black),
         textAlign: TextAlign.left,
       );
-    }
-
-    String firstOrJoined(dynamic v) {
-      if (v == null) return '-';
-      if (v is List) {
-        final list = v.map((e) => e.toString().trim()).where((e) => e.isNotEmpty).toList();
-        if (list.isEmpty) return '-';
-        return list.first;
-      }
-      if (v is String) return v.trim().isEmpty ? '-' : v.trim();
-      return v.toString();
     }
 
     List<String> asList(dynamic v) {
@@ -219,27 +207,60 @@ class _AbcCardState extends State<_AbcCard> {
       return [v.toString()];
     }
 
-    final situation = firstOrJoined(m.activatingEvent);
+    final situation = asList(m.activatingEvent).join(', ');
     final thought = asList(m.belief).join(', ');
-    final physicalList = asList(m.cPhysical);
-    final emotionList = asList(m.cEmotion);
-    final behaviorList = asList(m.cBehavior);
+    final emotion = asList(m.cEmotion).join(', ');
+    final physical = asList(m.cPhysical).join(', ');
+    final behavior = asList(m.cBehavior).join(', ');
 
-    final physicalStr = physicalList.isEmpty ? '-' : "'${physicalList.join("', '")}'";
-    final emotionStr = emotionList.isEmpty ? '-' : "'${emotionList.join("', '")}'";
-    final behaviorStr = behaviorList.isEmpty ? '-' : "'${behaviorList.join("', '")}'";
+    // Chip-style label used to highlight A/B/C headings inline
+    WidgetSpan chipLabel(String text) => WidgetSpan(
+          alignment: PlaceholderAlignment.middle,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 2 , vertical: 0),
+            decoration: BoxDecoration(
+              color: AppColors.indigo50,
+            ),
+            child: Text(
+              text,
+              style: const TextStyle(fontSize: 16),
+            ),
+          ),
+        );
 
-    final text =
-        "오늘 나는 '$situation' (이)라는 일이 있었다.\n"
-        "그 상황에서 나는 '$thought' (이)라는 생각이 떠올랐고, "
-        "몸에서 $physicalStr (이)라는 변화가 있었다.\n"
-        "그 순간 $emotionStr (이)라는 감정을 느꼈고, "
-        "나는 $behaviorStr (이)라는 행동을 했다.";
+    // Build narrative with highlighted labels
+    final spans = <InlineSpan>[];
 
-    return Text(
-      text,
-      style: const TextStyle(fontSize: 16, color: Colors.black),
+    // Line 1: A (상황)
+    spans.add(const TextSpan(text: "오늘 나는 "));
+    spans.add(chipLabel(situation.isNotEmpty ? situation : '-'));
+    spans.add(const TextSpan(text: " (이)라는 일이 있었다."));
+
+    // Line 2: B (생각)
+    spans.add(const TextSpan(text: "\n그 상황에서 나는 "));
+    spans.add(chipLabel(thought.isNotEmpty ? thought : '-'));
+    spans.add(const TextSpan(text: " (이)라는 생각이 떠올랐고,\n"));
+
+    // Line 3: C1 (감정)
+    spans.add(chipLabel(emotion.isNotEmpty ? emotion : '-'));
+    spans.add(const TextSpan(text: " (이)라는 감정을 느꼈다."));
+
+    // Line 4: C2 (신체증상)
+    spans.add(const TextSpan(text: "\n그 순간 몸에서 "));
+    spans.add(chipLabel(physical.isNotEmpty ? physical : '-'));
+    spans.add(const TextSpan(text: " (이)라는 변화가 있었고,"));
+
+    // Line 5: C3 (행동)
+    spans.add(const TextSpan(text: "\n나는 '"));
+    spans.add(chipLabel( behavior.isNotEmpty ? behavior : '-'));
+    spans.add(const TextSpan(text: " (이)라는 행동을 했다."));
+
+    return RichText(
       textAlign: TextAlign.left,
+      text: TextSpan(
+        style: const TextStyle(fontSize: 16, color: Colors.black),
+        children: spans,
+      ),
     );
   }
 
@@ -472,7 +493,7 @@ class _AbcCardState extends State<_AbcCard> {
                     const Divider(),
                     const SizedBox(height: 8),
                     _buildCardContent(m),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 16),
                   ],
                 ),
                 crossFadeState: _expanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
@@ -509,6 +530,7 @@ class _NotificationDirectoryScreenState extends State<NotificationDirectoryScree
       firstDate: now.subtract(const Duration(days: 10)),
       lastDate: now,
       initialDateRange: _selectedRange ?? initialRange,
+      initialEntryMode: DatePickerEntryMode.calendarOnly,
       helpText: '기간 선택',
       cancelText: '취소',
       saveText: '적용',

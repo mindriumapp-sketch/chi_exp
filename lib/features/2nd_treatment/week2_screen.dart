@@ -42,7 +42,7 @@ class _Week2ScreenState extends State<Week2Screen> {
                 ),
                 const SizedBox(height: 24),
                 const Text(
-                  '자전거를 타려고 했을 때의 상황을 예시로 살펴볼게요.',
+                  '자전거를 타려고 했을 때의 상황을\n예시로 살펴볼게요.',
                   style: TextStyle(fontSize: 20, color: Colors.black87),
                   textAlign: TextAlign.center,
                 ),

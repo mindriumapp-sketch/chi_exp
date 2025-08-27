@@ -28,7 +28,7 @@ class AbcBeliefScreen extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(24, 18, 24, 18),
               color: Colors.black.withValues(alpha: 0.7),
               child: const Text(
-                'B(생각)\n막 자전거에 올라타서 페달을 밟으려는 순간, 균형이 살짝 흔들렸고 ‘넘어질 것 같아…’ 라는 생각이 들었어요.\n예전에 자전거 타다 넘어져서 다쳤던 기억이 갑자기 떠올랐고, 그때의 아픔이 다시 느껴지는 것 같았어요.',
+                'B(생각)\n막 자전거에 올라타서 페달을 밟으려는 순간, 균형이 살짝 흔들렸고 넘어질 것 같은 생각이 들었어요.\n예전에 자전거 타다 넘어져서 다쳤던 기억이 갑자기 떠올랐고, 그때의 아픔이 다시 느껴지는 것 같았어요.',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 18,

@@ -29,19 +29,43 @@ class _AbcGuideScreenState extends State<AbcGuideScreen> {
                   const Text(
                     'ABC 모델이란?',
                     style: TextStyle(
-                      fontSize: 24,
+                      fontSize: 28,
                       fontWeight: FontWeight.bold,
                       color: Colors.black,
                     ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 24),
-                  const Text(
-                    'ABC 모델은 인지행동치료(Cognitive Behavioral Therapy, CBT)에서 사용되는 대표적인 기법 중 하나로, 사람의 정서적 반응과 행동이 특정 사건 자체보다는 그 사건에 대한 생각(믿음)에 의해 결정된다는 개념을 바탕으로 합니다. 이 모델은 미국의 심리학자 앨버트 엘리스가 1950년대에 개발한 합리적 정서행동치료의 핵심 구성 요소로 소개되었습니다. 앞으로 감정 일기를 매일매일 작성할 예정이며, 인지행동치료(CBT)의 핵심 기법인 ABC 모델을 기반으로 기록할 것입니다.',
-                    style: TextStyle(fontSize: 16, color: Colors.black87),
-                    textAlign: TextAlign.center,
+                  const Text.rich(
+                    TextSpan(
+                      style: TextStyle(fontSize: 20, color: Colors.black),
+                      children: [
+                        TextSpan(text: 'ABC 일기는 인지행동치료에서 사용되는 일기 쓰기 방식입니다. '),
+                        TextSpan(text: '오늘 있었던 사건(A)', style: TextStyle(fontWeight: FontWeight.bold)),
+                        TextSpan(text: '에 대한 '),
+                        TextSpan(text: '나의 생각(B) ', style: TextStyle(fontWeight: FontWeight.bold)),
+                        TextSpan(text: '을 기록하면, 그 생각이 '),
+                        TextSpan(text: '어떤 감정이나 행동(C)', style: TextStyle(fontWeight: FontWeight.bold)),
+                        TextSpan(text: '을 유발했는지 이해하는 데 도움이 됩니다.'),
+                      ]
+                    ),
+                    textAlign: TextAlign.left,
                   ),
-                  const Spacer(),
+                  const SizedBox(height: 16),
+
+                  const Text.rich(
+                    TextSpan(
+                      style: TextStyle(fontSize: 20, color: Colors.black),
+                      children: [
+                        TextSpan(text: '앞으로 ABC 모델을 기반으로 '),
+                        TextSpan(text: '걱정 일기를 '),
+                        TextSpan(text: '매일 1회 ', style: TextStyle(fontWeight: FontWeight.bold)),
+                        TextSpan(text: '작성 부탁드립니다.'),
+                      ],
+                    ),
+                    textAlign: TextAlign.left,
+                  ),
+                  Spacer(),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [

@@ -50,6 +50,12 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
     return userRef.collection('custom_abc_chips');
   }
 
+  /// Legacy (singular) collection for backward compatibility
+  CollectionReference<Map<String, dynamic>> _legacyChipsRef(String uid) {
+    final userRef = FirebaseFirestore.instance.collection('chi_users').doc(uid);
+    return userRef.collection('custom_abc_chip'); // legacy (singular)
+  }
+
   // --- Sequential ID helpers (per-user, per-collection) ---
   DocumentReference<Map<String, dynamic>> _counterRef(String uid, String collection) {
     return FirebaseFirestore.instance
@@ -175,63 +181,88 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
     }
   }
 
-  // 사용자 정의 칩 불러오기 함수
+  // 사용자 정의 칩 불러오기 함수 (backward compatibility with legacy collection, dedupes by type+label)
   Future<void> _loadCustomChips() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
     try {
-      final snapshot = await _chipsRef(user.uid).orderBy('createdAt').get();
+      final uid = user.uid;
 
-      for (var doc in snapshot.docs) {
-        final data = doc.data();
-        // Only include chips not deleted
-        if (data['is_deleted'] == true) continue;
-        final type = data['type'];
-        final label = data['label'];
+      // Load from both collections (plural + legacy singular) with server-side filter
+      final results = await Future.wait([
+        _chipsRef(uid).where('is_deleted', isEqualTo: false).get(),
+        _legacyChipsRef(uid).where('is_deleted', isEqualTo: false).get(),
+      ]);
 
-        setState(() {
+      final seen = <String>{};
+      final addsA = <String>[];
+      final addsB = <String>[];
+      final addsPhys = <String>[];
+      final addsEmo = <String>[];
+      final addsBeh = <String>[];
+
+      for (final snap in results) {
+        for (final doc in snap.docs) {
+          final data = doc.data();
+          final type = data['type'];
+          final label = (data['label'] ?? '').toString().trim();
+
+          if (label.isEmpty || type == null) continue;
+          final key = '$type|$label';
+          if (seen.contains(key)) continue; // dedupe across both collections
+          seen.add(key);
+
           switch (type) {
             case 'A':
-              if (!_aGridChips.any((chip) => chip.label == label)) {
-                _aGridChips.insert(
-                  _aGridChips.length - 1,
-                  GridItem(label: label, isAdd: true),
-                );
-              }
+              addsA.add(label);
               break;
             case 'B':
-              if (!_bGridChips.any((chip) => chip.label == label)) {
-                _bGridChips.insert(
-                  _bGridChips.length - 1,
-                  GridItem(label: label, isAdd: true),
-                );
-              }
+              addsB.add(label);
               break;
             case 'C-physical':
-              if (!_physicalChips.any((chip) => chip.label == label)) {
-                _physicalChips.insert(
-                  _physicalChips.length - 1,
-                  GridItem(label: label, isAdd: true),
-                );
-              }
+              addsPhys.add(label);
               break;
             case 'C-emotion':
-              if (!_emotionChips.any((chip) => chip.label == label)) {
-                _emotionChips.insert(
-                  _emotionChips.length - 1,
-                  GridItem(label: label, isAdd: true),
-                );
-              }
+              addsEmo.add(label);
               break;
             case 'C-behavior':
-              if (!_behaviorChips.any((chip) => chip.label == label)) {
-                _behaviorChips.insert(
-                  _behaviorChips.length - 1,
-                  GridItem(label: label, isAdd: true),
-                );
-              }
+              addsBeh.add(label);
               break;
+            default:
+              // Unknown type → ignore to avoid UI breakage
+              break;
+          }
+        }
+      }
+
+      // Batch a single rebuild
+      if (mounted) {
+        setState(() {
+          for (final label in addsA) {
+            if (!_aGridChips.any((c) => c.label == label)) {
+              _aGridChips.insert(_aGridChips.length - 1, GridItem(label: label, isAdd: true));
+            }
+          }
+          for (final label in addsB) {
+            if (!_bGridChips.any((c) => c.label == label)) {
+              _bGridChips.insert(_bGridChips.length - 1, GridItem(label: label, isAdd: true));
+            }
+          }
+          for (final label in addsPhys) {
+            if (!_physicalChips.any((c) => c.label == label)) {
+              _physicalChips.insert(_physicalChips.length - 1, GridItem(label: label, isAdd: true));
+            }
+          }
+          for (final label in addsEmo) {
+            if (!_emotionChips.any((c) => c.label == label)) {
+              _emotionChips.insert(_emotionChips.length - 1, GridItem(label: label, isAdd: true));
+            }
+          }
+          for (final label in addsBeh) {
+            if (!_behaviorChips.any((c) => c.label == label)) {
+              _behaviorChips.insert(_behaviorChips.length - 1, GridItem(label: label, isAdd: true));
+            }
           }
         });
       }
@@ -309,14 +340,14 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
     // ✅ 리스트 안전하게 변환
     final ae = List<String>.from(data['activatingEvent'] ?? []);
     final bl = List<String>.from(data['belief'] ?? []);
-    final c1 = List<String>.from(data['c1_physical'] ?? []);
-    final c2 = List<String>.from(data['c2_emotion'] ?? []);
+    final c1 = List<String>.from(data['c1_emotion'] ?? []);
+    final c2 = List<String>.from(data['c2_physical'] ?? []);
     final c3 = List<String>.from(data['c3_behavior'] ?? []);
 
     setState(() {
       // A: 단일 선택
       if (ae.isNotEmpty) {
-        final idx = _ensureChip(_aGridChips, ae.first);  // ✅ 첫 값만
+        final idx = _ensureChip(_aGridChips, ae.first);
         _selectedAGrid
           ..clear()
           ..add(idx);
@@ -330,17 +361,17 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
       }
 
       // C1
-      _selectedPhysical.clear();
+      _selectedEmotion.clear();
       for (final s in c1) {
-        final idx = _ensureChip(_physicalChips, s.toString());
-        _selectedPhysical.add(idx);
+        final idx = _ensureChip(_emotionChips, s.toString());
+        _selectedEmotion.add(idx);
       }
 
       // C2
-      _selectedEmotion.clear();
+      _selectedPhysical.clear();
       for (final s in c2) {
-        final idx = _ensureChip(_emotionChips, s.toString());
-        _selectedEmotion.add(idx);
+        final idx = _ensureChip(_physicalChips, s.toString());
+        _selectedPhysical.add(idx);
       }
 
       // C3
@@ -394,7 +425,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
 
     // 기본 칩 세팅
     _behaviorChips = [
-      GridItem(label: '자전거 끌고가기'),
+      GridItem(label: '자전거 끌고 돌아가기'),
       GridItem(label: '+ 추가', isAdd: true),
     ];
 
@@ -441,9 +472,9 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
     if (_currentStep == 1) return _selectedBGrid.isNotEmpty;
     switch (_currentCSubStep) {
       case 0:
-        return _selectedPhysical.isNotEmpty;
-      case 1:
         return _selectedEmotion.isNotEmpty;
+      case 1:
+        return _selectedPhysical.isNotEmpty;
       default:
         return _selectedBehavior.isNotEmpty;
     }
@@ -501,7 +532,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'A. 상황',
+                    '오늘 있었던 기억에 남는 일은 무엇인가요?',
                     style: TextStyle(
                       fontSize: 20,
                       color: Colors.indigo,
@@ -610,7 +641,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'B. 생각',
+                    '그 상황에서 어떤 생각이 떠올랐나요?',
                     style: TextStyle(
                       fontSize: 20,
                       color: Colors.indigo,
@@ -718,7 +749,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'C1. 신체 증상',
+                    '그때 몸에서 어떤 변화가 있었나요?\n',
                     style: TextStyle(
                       fontSize: 20,
                       color: Colors.indigo,
@@ -823,7 +854,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'C2. 감정',
+                    '그 순간 어떤 감정을 느꼈나요?',
                     style: TextStyle(
                       fontSize: 20,
                       color: Colors.indigo,
@@ -960,7 +991,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
         child: Scaffold(
           backgroundColor: Colors.grey.shade100,
           appBar: CustomAppBar(
-            title: _isEditing ? '일기 수정' : '일기 쓰기',
+            title: _isEditing ? '일기 수정' : '일기 작성',
             confirmOnBack: true,
             confirmOnHome: true,
           ),
@@ -1027,7 +1058,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          '선택한 칩을 기반으로한 작성된 일기 입니다.',
+          '아래 질문에 대한 키워드를 선택하여 일기의 빈칸을 채워주세요.',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
         const SizedBox(height: 16),
@@ -1037,11 +1068,19 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
   }
 
   Widget _buildFeedbackContent() {
-    final situation = _selectedAGrid.map((i) => _aGridChips[i].label).join(', ');
-    final thought = _selectedBGrid.map((i) => _bGridChips[i].label).join(', ');
-    final emotionList = _selectedEmotion.map((i) => _emotionChips[i].label).toList();
-    final physicalList = _selectedPhysical.map((i) => _physicalChips[i].label).toList();
-    final behaviorList = _selectedBehavior.map((i) => _behaviorChips[i].label).toList();
+    // Build lists first
+    final situationItems = _selectedAGrid.map((i) => _aGridChips[i].label).toList();
+    final thoughtItems   = _selectedBGrid.map((i) => _bGridChips[i].label).toList();
+    final emotionItems    = _selectedEmotion.map((i) => _emotionChips[i].label).toList();
+    final physicalItems  = _selectedPhysical.map((i) => _physicalChips[i].label).toList();
+    final behaviorItems   = _selectedBehavior.map((i) => _behaviorChips[i].label).toList();
+
+    // Fallbacks for empty selections (표시용 기본값)
+    final situation = situationItems.isNotEmpty ? situationItems.join(', ') : '';
+    final thought   = thoughtItems.isNotEmpty   ? thoughtItems.join(', ')   : '';
+    final emotion  = emotionItems.isNotEmpty  ? emotionItems.join(', ') : '';
+    final physical = physicalItems.isNotEmpty ? physicalItems.join(', ') : '';
+    final behavior = behaviorItems.isNotEmpty ? behaviorItems.join(', ') : '';
 
     return Card(
       color: Colors.white,
@@ -1059,17 +1098,107 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
           children: [
             Align(
               alignment: Alignment.centerLeft,
-              child: Text(
-                "오늘 나는 '$situation' (이)라는 일이 있었다.\n"
-                "그 상황에서 나는'$thought' (이)라는 생각이 떠올랐고, "
-                "몸에서 '${physicalList.join("', '")}' (이)라는 변화가 있었다.\n"
-                "그 순간 '${emotionList.join("', '")}' (이)라는 감정을 느꼈고, "
-                "나는 '${behaviorList.join("', '")}' (이)라는 행동을 했다.",
-                style: const TextStyle(
-                  fontSize: 16,
-                  color: Colors.black,
-                ),
-                textAlign: TextAlign.left,
+              child: Builder(
+                builder: (context) {
+                  // Highlight style for selected text
+                  final TextStyle selectedHighlight = TextStyle(
+                    // backgroundColor: Colors.amberAccent,
+                    color: Colors.black,
+                    fontSize: 16
+                  );
+                  int linesToShow = 1;
+                  if (_currentStep == 0) {
+                    linesToShow = 1;
+                  } else if (_currentStep == 1) {
+                    linesToShow = 2;
+                  } else {
+                    // _currentStep == 2 (C 단계)
+                    if (_currentCSubStep == 0) {
+                      linesToShow = 3; // C1까지
+                    } else if (_currentCSubStep == 1) {
+                      linesToShow = 4; // C2까지
+                    } else {
+                      linesToShow = 5; // C3까지 전부
+                    }
+                  }
+
+                  WidgetSpan box(String text) => WidgetSpan(
+                        alignment: PlaceholderAlignment.middle,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          margin: const EdgeInsets.symmetric(horizontal: 2),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.black12, width: 1),
+                            borderRadius: BorderRadius.circular(8),
+                            color: Colors.white,
+                          ),
+                          child: Text(text, style: const TextStyle(fontSize: 14, color: Colors.black)),
+                        ),
+                      );
+
+                  final spans = <InlineSpan>[];
+
+                  // Line 1: A
+                  spans.add(const TextSpan(text: "오늘 나는 "));
+                  if (situationItems.isNotEmpty) {
+                    spans.add(TextSpan(text: situation, style: selectedHighlight));
+                  } else {
+                    spans.add(box('A. 상황'));
+                  }
+                  spans.add(const TextSpan(text: " (이)라는 일이 있었다."));
+
+                  // Line 2: B
+                  if (linesToShow >= 2) {
+                    spans.add(const TextSpan(text: "\n그 상황에서 나는 "));
+                    if (thoughtItems.isNotEmpty) {
+                      spans.add(TextSpan(text: thought, style: selectedHighlight));
+                    } else {
+                      spans.add(box('B. 생각'));
+                    }
+                    spans.add(const TextSpan(text: " (이)라는 생각이 떠올랐고,"));
+                  }
+
+                  // Line 3: C1 Emotion
+                  if (linesToShow >= 3) {
+                    spans.add(const TextSpan(text: "\n"));
+                    if (emotionItems.isNotEmpty) {
+                      spans.add(TextSpan(text: emotion, style: selectedHighlight));
+                    } else {
+                      spans.add(box('C1. 감정'));
+                    }
+                    spans.add(const TextSpan(text: " (이)라는 감정을 느꼈다."));
+                  }
+
+                  // Line 4: C2 Physical
+                  if (linesToShow >= 4) {
+                    spans.add(const TextSpan(text: "\n그 순간 몸에서 "));
+                    if (physicalItems.isNotEmpty) {
+                      spans.add(TextSpan(text: physical, style: selectedHighlight));
+                    } else {
+                      spans.add(box('C2. 신체증상'));
+                    }
+                    spans.add(const TextSpan(text: " (이)라는 변화가 있었고,"));
+                  }
+
+                  // Line 5: C3 Behavior
+                  if (linesToShow >= 5) {
+                    spans.add(const TextSpan(text: "\n나는 "));
+                    if (behaviorItems.isNotEmpty) {
+                      spans.add(TextSpan(text: behavior, style: selectedHighlight));
+                    } else {
+                      spans.add(box('C3. 행동'));
+                    }
+                    spans.add(const TextSpan(text: " (이)라는 행동을 했다."));
+                  }
+
+                  return RichText(
+                    textAlign: TextAlign.left,
+                    text: TextSpan(
+                      style: const TextStyle(fontSize: 16, color: Colors.black),
+                      children: spans,
+                    ),
+                  );
+                },
               ),
             ),
           ],
@@ -1097,7 +1226,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          '오늘 있었던 기억에 남는 일은 무엇인가요? (A. 상황)',
+          '오늘 있었던 기억에 남는 일은 무엇인가요? (복수 선택 가능)',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
         const SizedBox(height: 8),
@@ -1174,7 +1303,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          '그 상황에서 어떤 생각이 떠올랐나요? (B. 생각)',
+          '그 상황에서 어떤 생각이 떠올랐나요? (복수 선택 가능)',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
         const SizedBox(height: 8),
@@ -1244,11 +1373,11 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              '그때 몸에서 어떤 변화가 있었나요? (C1. 신체증상)',
+              '그 순간 어떤 감정을 느꼈나요? (복수 선택 가능)',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
             const SizedBox(height: 8),
-            _buildCPhysicalChips(),
+            _buildCEmotionChips(),
           ],
         );
       case 1:
@@ -1256,11 +1385,11 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              '그 순간 어떤 감정을 느꼈나요? (C2. 감정)',
+              '그때 몸에서 어떤 변화가 있었나요? (복수 선택 가능)',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
             const SizedBox(height: 8),
-            _buildCEmotionChips(),
+            _buildCPhysicalChips(),
           ],
         );
       case 2:
@@ -1268,7 +1397,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              '그래서 어떤 행동을 했나요? (C3. 행동)',
+              '그래서 어떤 행동을 했나요? (복수 선택 가능)',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
             const SizedBox(height: 8),
@@ -1472,7 +1601,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'C3. 행동',
+                    '그래서 어떤 행동을 했나요?',
                     style: TextStyle(
                       fontSize: 20,
                       color: Colors.indigo,
@@ -1564,10 +1693,10 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
         return _aGridChips.any((chip) => chip.label == label);
       case 'B':
         return _bGridChips.any((chip) => chip.label == label);
-      case 'C-physical':
-        return _physicalChips.any((chip) => chip.label == label);
       case 'C-emotion':
         return _emotionChips.any((chip) => chip.label == label);
+      case 'C-physical':
+        return _physicalChips.any((chip) => chip.label == label);
       case 'C-behavior':
         return _behaviorChips.any((chip) => chip.label == label);
       default:
@@ -1584,11 +1713,11 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
       case 'B':
         list = _bGridChips;
         break;
-      case 'C-physical':
-        list = _physicalChips;
-        break;
       case 'C-emotion':
         list = _emotionChips;
+        break;
+      case 'C-physical':
+        list = _physicalChips;
         break;
       case 'C-behavior':
         list = _behaviorChips;
@@ -1648,11 +1777,11 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
     for (final label in _currentSessionBChips) {
       await saveIfNew('B', label);
     }
-    for (final label in _currentSessionCPhysicalChips) {
-      await saveIfNew('C-physical', label);
-    }
     for (final label in _currentSessionCEmotionChips) {
       await saveIfNew('C-emotion', label);
+    }
+    for (final label in _currentSessionCPhysicalChips) {
+      await saveIfNew('C-physical', label);
     }
     for (final label in _currentSessionCBehaviorChips) {
       await saveIfNew('C-behavior', label);
@@ -1704,13 +1833,13 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
           _bGridChips.removeAt(index);
           _adjustSelectionAfterRemoval(_selectedBGrid, index);
           break;
-        case 'C-physical':
-          _physicalChips.removeAt(index);
-          _adjustSelectionAfterRemoval(_selectedPhysical, index);
-          break;
         case 'C-emotion':
           _emotionChips.removeAt(index);
           _adjustSelectionAfterRemoval(_selectedEmotion, index);
+          break;
+        case 'C-physical':
+          _physicalChips.removeAt(index);
+          _adjustSelectionAfterRemoval(_selectedPhysical, index);
           break;
         case 'C-behavior':
           _behaviorChips.removeAt(index);
@@ -1739,8 +1868,8 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
       await firestore.collection('chi_users').doc(userId).set({}, SetOptions(merge: true));
 
       // ABC 모델 데이터 구성 (기본 필드)
-      final c1 = _selectedPhysical.map((i) => _physicalChips[i].label).toList();
-      final c2 = _selectedEmotion.map((i) => _emotionChips[i].label).toList();
+      final c1 = _selectedEmotion.map((i) => _emotionChips[i].label).toList();
+      final c2 = _selectedPhysical.map((i) => _physicalChips[i].label).toList();
       final c3 = _selectedBehavior.map((i) => _behaviorChips[i].label).toList();
       final activatingEvent = _selectedAGrid.map((i) => _aGridChips[i].label).toList();
       final belief          = _selectedBGrid.map((i) => _bGridChips[i].label).toList();
@@ -1749,8 +1878,8 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
       final baseData = {
         'activatingEvent': activatingEvent,
         'belief'         : belief,
-        'c1_physical'    : c1,
-        'c2_emotion'     : c2,
+        'c1_emotion'     : c1,
+        'c2_physical'    : c2,
         'c3_behavior'    : c3,
         
       };
@@ -1809,13 +1938,13 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                   }
                 }
                 for (final label in c1) {
-                  if (_isCustomChip('C-physical', label)) {
-                    await _bumpCustomChipCount('C-physical', label);
+                  if (_isCustomChip('C-emotion', label)) {
+                    await _bumpCustomChipCount('C-emotion', label);
                   }
                 }
                 for (final label in c2) {
-                  if (_isCustomChip('C-emotion', label)) {
-                    await _bumpCustomChipCount('C-emotion', label);
+                  if (_isCustomChip('C-physical', label)) {
+                    await _bumpCustomChipCount('C-physical', label);
                   }
                 }
                 for (final label in c3) {
@@ -1987,8 +2116,8 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
         'checkStates': {
           'A': _selectedAGrid.isNotEmpty,
           'B': _selectedBGrid.isNotEmpty,
-          'C1': _selectedPhysical.isNotEmpty,
-          'C2': _selectedEmotion.isNotEmpty,
+          'C1': _selectedEmotion.isNotEmpty,
+          'C2': _selectedPhysical.isNotEmpty,
           'C3': _selectedBehavior.isNotEmpty,
         },
         'chipToggles': _chipToggles,

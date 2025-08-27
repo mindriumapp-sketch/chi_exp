@@ -253,7 +253,7 @@ final TextEditingController _textDiaryController = TextEditingController();
         child:Scaffold(
         backgroundColor: Colors.grey.shade100,
         appBar: CustomAppBar(
-          title: _isEditing ? '일기 수정' : '일기 쓰기',
+          title: _isEditing ? '일기 수정' : '일기 작성',
           confirmOnBack: true,
           confirmOnHome: true,
         ),
@@ -364,7 +364,7 @@ final TextEditingController _textDiaryController = TextEditingController();
         ),
         CheckboxListTile(
           title: const Text(
-            "반응을 유발하는 사건이나 상황 (A. 상황)",
+            "오늘 일어난 사건이나 상황 (A. 상황)",
             style: TextStyle(fontSize: 16),
           ),
           value: isCheckedA,
@@ -416,7 +416,7 @@ final TextEditingController _textDiaryController = TextEditingController();
             ),
             CheckboxListTile(
               title: const Text(
-                '결과로 나타나는 신체증상 (C1. 신체증상)',
+                '결과로 나타나는 감정 (C1. 감정)',
                 style: TextStyle(fontSize: 16),
               ),
               value: isCheckedC1,
@@ -439,7 +439,7 @@ final TextEditingController _textDiaryController = TextEditingController();
             ),
             CheckboxListTile(
               title: const Text(
-                '결과로 나타나는 감정 (C2. 감정)',
+                '결과로 나타나는 신체증상 (C2. 신체증상)',
                 style: TextStyle(fontSize: 16),
               ),
               value: isCheckedC2,
