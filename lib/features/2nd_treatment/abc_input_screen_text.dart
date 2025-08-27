@@ -324,7 +324,7 @@ final TextEditingController _textDiaryController = TextEditingController();
         const SizedBox(height: 16),
         TextField(
           controller: _textDiaryController,
-          maxLines: 16,
+          maxLines: 12,
           onChanged: (_) {
             _resetIdleTimer();
             setState(() {});

@@ -15,7 +15,7 @@ class AbcRealStartScreen extends StatelessWidget {
         aspect: 9 / 16,
         background: Colors.grey.shade100,
         child:Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.grey.shade100,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
