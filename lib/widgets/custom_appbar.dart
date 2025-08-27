@@ -40,7 +40,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('나가기'),
+            child: const Text('나가기', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
