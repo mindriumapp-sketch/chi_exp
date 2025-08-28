@@ -97,7 +97,7 @@ class _AbcStreamListState extends State<AbcStreamList> {
 
       return base
           .where('completedAt', isGreaterThanOrEqualTo: start)
-          .where('completedAt', isLessThan: endExclusive) // strict < next day start
+          .where('completedAt', isLessThan: endExclusive)
           .snapshots();
     }
     return base.snapshots();
@@ -263,7 +263,7 @@ class _AbcCardState extends State<_AbcCard> {
     spans.add(const TextSpan(text: " (이)라는 변화가 있었고,"));
 
     // Line 5: C3 (행동)
-    spans.add(const TextSpan(text: "\n나는 '"));
+    spans.add(const TextSpan(text: "\n나는 "));
     spans.add(chipLabel( behavior.isNotEmpty ? behavior : '-'));
     spans.add(const TextSpan(text: " (이)라는 행동을 했다."));
 
@@ -539,7 +539,7 @@ class _NotificationDirectoryScreenState extends State<NotificationDirectoryScree
 
     final picked = await showDateRangePicker(
       context: context,
-      firstDate: now.subtract(const Duration(days: 10)),
+      firstDate: now.subtract(const Duration(days: 14)),
       lastDate: now,
       initialDateRange: _selectedRange ?? initialRange,
       initialEntryMode: DatePickerEntryMode.calendarOnly,

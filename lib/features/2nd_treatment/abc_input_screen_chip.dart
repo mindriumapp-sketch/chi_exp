@@ -85,7 +85,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
   Timer? _bgAbandonTimer;
   static const Duration _idleTimeout = Duration(minutes: 1);
   static const Duration _bgAbandonTimeout = Duration(minutes: 5);
-  int _chipToggles = 0;
 
   // Step time tracking
   final Map<String, int> _stepTimeMs = {'A': 0, 'B': 0, 'C1': 0, 'C2': 0, 'C3': 0};
@@ -1272,7 +1271,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                     isSelected
                         ? _selectedAGrid.remove(i)
                         : _selectedAGrid.add(i);
-                    _chipToggles++;
                   }); _resetIdleTimer();
                 },
                 showCheckmark: false,
@@ -1340,7 +1338,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                     isSelected
                         ? _selectedBGrid.remove(i)
                         : _selectedBGrid.add(i);
-                    _chipToggles++;
                   }); _resetIdleTimer();
                 },
                 showCheckmark: false,
@@ -1443,7 +1440,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                 isSelected
                     ? _selectedPhysical.remove(i)
                     : _selectedPhysical.add(i);
-                _chipToggles++;
               }); _resetIdleTimer();
             },
             showCheckmark: false,
@@ -1501,7 +1497,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                 isSelected
                     ? _selectedEmotion.remove(i)
                     : _selectedEmotion.add(i);
-                _chipToggles++;
               }); _resetIdleTimer();
             },
             showCheckmark: false,
@@ -1559,7 +1554,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                 isSelected
                     ? _selectedBehavior.remove(i)
                     : _selectedBehavior.add(i);
-                _chipToggles++;
               }); _resetIdleTimer();
             },
             showCheckmark: false,
@@ -1973,7 +1967,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                     'durationMs': widget.startedAt != null
                         ? DateTime.now().millisecondsSinceEpoch - widget.startedAt!.millisecondsSinceEpoch
                         : null,
-                    'chipToggles': _chipToggles,
                     'pageTimeMs': _pageTimeMsTotal,
                   }, SetOptions(merge: true));
                 }
@@ -2120,7 +2113,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
           'C2': _selectedPhysical.isNotEmpty,
           'C3': _selectedBehavior.isNotEmpty,
         },
-        'chipToggles': _chipToggles,
         'pageTimeMs': _pageTimeMsTotal,
       }, SetOptions(merge: true));
     } catch (e) {
