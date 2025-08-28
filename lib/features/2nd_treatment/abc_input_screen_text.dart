@@ -5,6 +5,7 @@ import '../../widgets/navigation_button.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:gad_app_team/widgets/aspect_viewport.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class AbcInputTextScreen extends StatefulWidget {
   final Map<String, String>? exampleData;
@@ -185,6 +186,14 @@ final TextEditingController _textDiaryController = TextEditingController();
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (kIsWeb && (state == AppLifecycleState.inactive || state == AppLifecycleState.paused)) {
+      if (!_isPaused) {
+        _bumpStepTimeToNow(_currentStepKey());
+        _isPaused = true;
+      }
+      _markAbandoned('page_hide'); // ✅ 즉시 abandon 시도
+      return;                      // 타이머 대기 없이 바로 종료
+    }
     if (state == AppLifecycleState.inactive || state == AppLifecycleState.paused) {
       // Stop the current step timer and mark as paused (do not count paused duration)
       if (!_isPaused) {

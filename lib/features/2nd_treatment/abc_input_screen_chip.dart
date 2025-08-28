@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
 import 'package:gad_app_team/widgets/aspect_viewport.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class GridItem {
   // final IconData icon;
@@ -491,6 +492,15 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (kIsWeb && (state == AppLifecycleState.inactive || state == AppLifecycleState.paused)) {
+      if (!_isPaused) {
+        _bumpStepTimeToNow(_currentStepKey());
+        _isPaused = true;
+      }
+      _markAbandoned('page_hide'); // ✅ 즉시 abandon 시도
+      return;                      // 타이머 대기 없이 바로 종료
+    }
+
     if (state == AppLifecycleState.inactive || state == AppLifecycleState.paused) {
       // 즉시 카운트 마감 + 일시정지, 복귀 없으면 이탈 예약
       if (!_isPaused) {
