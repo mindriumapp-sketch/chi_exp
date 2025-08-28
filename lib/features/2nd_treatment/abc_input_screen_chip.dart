@@ -112,14 +112,14 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
 
   // 1. 신체증상 전용 칩
   final List<GridItem> _physicalChips = [
-    GridItem(label: '가슴 두근거림'),
+    // GridItem(label: '가슴 두근거림'),
     GridItem(label: '+ 추가', isAdd: true),
   ];
   final Set<int> _selectedPhysical = {};
 
   // 2. 감정 전용 칩
   final List<GridItem> _emotionChips = [
-    GridItem(label: '두려움'),
+    // GridItem(label: '두려움'),
     GridItem(label: '+ 추가', isAdd: true),
   ];
   final Set<int> _selectedEmotion = {};
@@ -130,13 +130,13 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
 
   // 1. 칩 데이터 및 선택 상태 추가
   final List<GridItem> _aGridChips = [
-    GridItem(label: '자전거 타기'),
+    // GridItem(label: '자전거 타기'),
     GridItem(label: '+ 추가', isAdd: true),
   ];
   final Set<int> _selectedAGrid = {};
 
   final List<GridItem> _bGridChips = [
-    GridItem(label: '넘어질 것 같음'),
+    // GridItem(label: '넘어질 것 같음'),
     GridItem(label: '+ 추가', isAdd: true),
   ];
   final Set<int> _selectedBGrid = {};
