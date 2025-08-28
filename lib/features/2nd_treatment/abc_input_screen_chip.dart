@@ -2016,13 +2016,13 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
       final userDoc = FirebaseFirestore.instance.collection('chi_users').doc(uid);
       final sessions = userDoc.collection('abc_sessions');
       final newSessionId = await _nextSequencedDocId(uid, 'abc_sessions');
+      _sessionId = newSessionId;
       await sessions.doc(newSessionId).set({
         'status': 'in_progress',
         'screen': 'AbcInputScreen_chip',
         'experimentCondition': 'Chip_input',
         'startedAt': widget.startedAt ?? FieldValue.serverTimestamp(),
       });
-      _sessionId = newSessionId;
     } catch (e) {
       debugPrint('세션 시작 실패: $e');
     }

@@ -625,12 +625,12 @@ final TextEditingController _textDiaryController = TextEditingController();
       final userDoc = FirebaseFirestore.instance.collection('chi_users').doc(uid);
       final sessions = userDoc.collection('abc_sessions');
       final newSessionId = await _nextSequencedDocId(uid, 'abc_sessions');
+      _sessionId = newSessionId;
       await sessions.doc(newSessionId).set({
         'status': 'in_progress',
         'experimentCondition': 'Text_input',
         'startedAt': widget.startedAt ?? FieldValue.serverTimestamp(),
       });
-      _sessionId = newSessionId;
     } catch (e) {
       debugPrint('세션 시작 실패: $e');
     }
