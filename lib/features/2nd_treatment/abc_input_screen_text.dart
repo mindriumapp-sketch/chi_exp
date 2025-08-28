@@ -247,6 +247,35 @@ final TextEditingController _textDiaryController = TextEditingController();
     }
   }
 
+  Future<void> _confirmExitFromFirstPage() async {
+    final shouldLeave = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('종료하시겠어요?'),
+        content: const Text('지금 종료하면 진행 상황이 저장되지 않을 수 있습니다.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('나가기', style: TextStyle(color: Colors.red),),
+          ),
+        ],
+      ),
+    ) ?? false;
+
+    if (shouldLeave) {
+      _markAbandoned('page_back');
+      _cancelTimers();
+      if (mounted) {
+        Navigator.pop(context);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
@@ -281,9 +310,7 @@ final TextEditingController _textDiaryController = TextEditingController();
                 : (_currentCSubStep < 2 ? '다음' : (_isEditing ? '수정' : '저장')),
             onBack: () {
               if (_currentStep == 0) {
-                _markAbandoned('page_back');
-                _cancelTimers();
-                Navigator.pop(context);
+                _confirmExitFromFirstPage();
               } else if (_currentStep == 2 && _currentCSubStep > 0) {
                 setState(() => _currentCSubStep--);
               } else {
