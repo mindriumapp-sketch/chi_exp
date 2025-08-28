@@ -1882,7 +1882,27 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
       _removeFromCurrentSession(type, label);
     });
   }
-  
+
+  Future<void> _onEdit() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    final fs = FirebaseFirestore.instance;
+    final userDoc = fs.collection('chi_users').doc(uid);
+    final docRef = userDoc.collection('abc_models').doc(widget.abcId);
+    final backupRef = userDoc.collection('abc_backup').doc(widget.abcId);
+    // 기존 데이터 백업
+    try {
+      final snap = await docRef.get();
+      final Map<String, dynamic>? data = snap.data();
+      final backup = <String, dynamic>{
+        ...?data,
+        'backupAt': FieldValue.serverTimestamp(),
+      };
+      await backupRef.set(backup, SetOptions(merge: true));
+    } catch (_) {}
+  }
+
   Future<void> _saveAbcAndExit() async {
     try {
       final userId = FirebaseAuth.instance.currentUser?.uid;
@@ -1905,7 +1925,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
       final c3 = _selectedBehavior.map((i) => _behaviorChips[i].label).toList();
       final activatingEvent = _selectedAGrid.map((i) => _aGridChips[i].label).toList();
       final belief          = _selectedBGrid.map((i) => _bGridChips[i].label).toList();
-
 
       final baseData = {
         'activatingEvent': activatingEvent,
@@ -1931,7 +1950,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
               child: Text('확인'),
               onPressed: () async {
                 if (_isEditing) {
-                  // 편집: 기존 문서에 덮어쓰기 (백업은 onEdit에서 수행)
                   final docRef = firestore
                       .collection('chi_users')
                       .doc(userId)
@@ -1944,6 +1962,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                     'completedAt': FieldValue.serverTimestamp(),
                   };
                   await docRef.set(payload, SetOptions(merge: true));
+                  _onEdit();
                 } else {
                   // 신규: 시퀀스 ID로 생성
                   final newId = await _nextSequencedDocId(userId, 'abc_models');

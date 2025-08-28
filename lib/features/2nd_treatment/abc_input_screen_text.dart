@@ -516,6 +516,26 @@ final TextEditingController _textDiaryController = TextEditingController();
     }
   }
 
+  Future<void> _onEdit() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    final fs = FirebaseFirestore.instance;
+    final userDoc = fs.collection('chi_users').doc(uid);
+    final docRef = userDoc.collection('abc_models').doc(widget.abcId);
+    final backupRef = userDoc.collection('abc_backup').doc(widget.abcId);
+    // 기존 데이터 백업
+    try {
+      final snap = await docRef.get();
+      final Map<String, dynamic>? data = snap.data();
+      final backup = <String, dynamic>{
+        ...?data,
+        'backupAt': FieldValue.serverTimestamp(),
+      };
+      await backupRef.set(backup, SetOptions(merge: true));
+    } catch (_) {}
+  }
+
   Future<void> _saveAbcAndExit() async {
     try {
       final userId = FirebaseAuth.instance.currentUser?.uid;
@@ -563,6 +583,7 @@ final TextEditingController _textDiaryController = TextEditingController();
                     'completedAt': FieldValue.serverTimestamp(),
                   };
                   await docRef.set(payload, SetOptions(merge: true));
+                  _onEdit();
                 } else {
                   // 신규: 시퀀스 ID 생성 후 저장
                   final newModelId = await _nextSequencedDocId(userId, 'abc_models');

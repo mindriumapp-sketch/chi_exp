@@ -282,20 +282,19 @@ class _AbcCardState extends State<_AbcCard> {
 
     final fs = FirebaseFirestore.instance;
     final userDoc = fs.collection('chi_users').doc(uid);
-    final docRef = userDoc.collection('abc_models').doc(m.id);
-    final backupRef = userDoc.collection('abc_backup').doc(m.id);
     final startedAt = DateTime.now();
-
-    // 기존 데이터 백업
-    try {
-      final snap = await docRef.get();
-      final Map<String, dynamic>? data = snap.data();
-      final backup = <String, dynamic>{
-        ...?data,
-        'backupAt': FieldValue.serverTimestamp(),
-      };
-      await backupRef.set(backup, SetOptions(merge: true));
-    } catch (_) {}
+    // final docRef = userDoc.collection('abc_models').doc(m.id);
+    // final backupRef = userDoc.collection('abc_backup').doc(m.id);
+    // // 기존 데이터 백업
+    // try {
+    //   final snap = await docRef.get();
+    //   final Map<String, dynamic>? data = snap.data();
+    //   final backup = <String, dynamic>{
+    //     ...?data,
+    //     'backupAt': FieldValue.serverTimestamp(),
+    //   };
+    //   await backupRef.set(backup, SetOptions(merge: true));
+    // } catch (_) {}
 
     // 2) chi_users 코드 조회
     String? code;
