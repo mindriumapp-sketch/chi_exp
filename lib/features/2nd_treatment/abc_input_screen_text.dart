@@ -532,7 +532,7 @@ final TextEditingController _textDiaryController = TextEditingController();
         ...?data,
         'backupAt': FieldValue.serverTimestamp(),
       };
-      await backupRef.set(backup, SetOptions(merge: true));
+      await backupRef.set(backup);
     } catch (_) {}
   }
 
@@ -570,7 +570,9 @@ final TextEditingController _textDiaryController = TextEditingController();
               onPressed: () async {
                 // String savedAbcId;
                 if (_isEditing) {
-                  // 편집: 기존 문서 덮어쓰기 (onEdit에서 백업 완료된 상태)
+                  // 백업은 '수정 전' 스냅샷을 저장해야 하므로, 저장 전에 먼저 실행
+                  await _onEdit();
+                  // 편집: 기존 문서 덮어쓰기
                   final docRef = firestore
                       .collection('chi_users')
                       .doc(userId)
@@ -583,7 +585,6 @@ final TextEditingController _textDiaryController = TextEditingController();
                     'completedAt': FieldValue.serverTimestamp(),
                   };
                   await docRef.set(payload, SetOptions(merge: true));
-                  _onEdit();
                 } else {
                   // 신규: 시퀀스 ID 생성 후 저장
                   final newModelId = await _nextSequencedDocId(userId, 'abc_models');
@@ -683,11 +684,16 @@ final TextEditingController _textDiaryController = TextEditingController();
       final sessions = userDoc.collection('abc_sessions');
       final newSessionId = await _nextSequencedDocId(uid, 'abc_sessions');
       _sessionId = newSessionId;
-      await sessions.doc(newSessionId).set({
+      final Map<String, dynamic> payload = {
         'status': 'in_progress',
+        'screen': 'AbcInputScreen_text',
         'experimentCondition': 'Text_input',
         'startedAt': widget.startedAt ?? FieldValue.serverTimestamp(),
-      });
+      };
+      if (_isEditing) {
+        payload['is_edit'] = true;
+      }
+      await sessions.doc(newSessionId).set(payload);
     } catch (e) {
       debugPrint('세션 시작 실패: $e');
     }

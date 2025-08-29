@@ -1898,7 +1898,7 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
         ...?data,
         'backupAt': FieldValue.serverTimestamp(),
       };
-      await backupRef.set(backup, SetOptions(merge: true));
+      await backupRef.set(backup);
     } catch (_) {}
   }
 
@@ -1955,13 +1955,15 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
                       .collection('abc_models')
                       .doc(widget.abcId!);
 
+                  // 백업은 '수정 전' 스냅샷을 저장해야 하므로, 저장 전에 먼저 실행
+                  await _onEdit();
+
                   final payload = {
                     ...baseData,
                     'startedAt': widget.startedAt,
                     'completedAt': FieldValue.serverTimestamp(),
                   };
                   await docRef.set(payload, SetOptions(merge: true));
-                  _onEdit();
                 } else {
                   // 신규: 시퀀스 ID로 생성
                   final newId = await _nextSequencedDocId(userId, 'abc_models');
@@ -2073,12 +2075,16 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
       final sessions = userDoc.collection('abc_sessions');
       final newSessionId = await _nextSequencedDocId(uid, 'abc_sessions');
       _sessionId = newSessionId;
-      await sessions.doc(newSessionId).set({
+      final Map<String, dynamic> payload = {
         'status': 'in_progress',
         'screen': 'AbcInputScreen_chip',
         'experimentCondition': 'Chip_input',
         'startedAt': widget.startedAt ?? FieldValue.serverTimestamp(),
-      });
+      };
+      if (_isEditing) {
+        payload['is_edit'] = true;
+      }
+      await sessions.doc(newSessionId).set(payload);
     } catch (e) {
       debugPrint('세션 시작 실패: $e');
     }
