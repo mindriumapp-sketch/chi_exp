@@ -9,8 +9,8 @@ import 'package:gad_app_team/widgets/aspect_viewport.dart';
 import 'package:gad_app_team/navigation/navigation.dart';
 import 'package:gad_app_team/models/daycounter.dart';
 import 'package:gad_app_team/data/user_provider.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+// import 'package:cloud_firestore/cloud_firestore.dart';
+// import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:gad_app_team/features/contents/diary_directory_screen.dart';
 import 'package:gad_app_team/features/llm/llm_test_screen.dart';
@@ -29,7 +29,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int daysSinceJoin = 0;
   final String date = DateFormat('yyyy년 MM월 dd일').format(DateTime.now());
   int _selectedIndex = 0;
-  bool _navigatedForSurvey = false; // prevent multiple redirects
+  // bool _navigatedForSurvey = false; // prevent multiple redirects
 
   @override
   void initState() {
@@ -46,37 +46,37 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => _selectedIndex = index);
   }
 
-  Future<void> _maybeRedirectAfterSurvey(int daysSinceJoin) async {
-    if (_navigatedForSurvey) return;
-    if (daysSinceJoin < 10) return; // 10일 이전엔 홈 유지
+  // Future<void> _maybeRedirectAfterSurvey(int daysSinceJoin) async {
+  //   if (_navigatedForSurvey) return;
+  //   if (daysSinceJoin < 10) return; // 10일 이전엔 홈 유지
 
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
+  //   final uid = FirebaseAuth.instance.currentUser?.uid;
+  //   if (uid == null) return;
 
-    try {
-      final snap = await FirebaseFirestore.instance
-          .collection('chi_users')
-          .doc(uid)
-          .get();
-      final data = snap.data();
-      final completed = data != null && data['after_survey_completed'] == true;
+  //   try {
+  //     final snap = await FirebaseFirestore.instance
+  //         .collection('chi_users')
+  //         .doc(uid)
+  //         .get();
+  //     final data = snap.data();
+  //     final completed = data != null && data['after_survey_completed'] == true;
 
-      if (!mounted) return;
-      _navigatedForSurvey = true;
-      Navigator.pushReplacementNamed(
-        context,
-        completed ? '/thanks' : '/after_survey',
-      );
-    } catch (_) {
-    }
-  }
+  //     if (!mounted) return;
+  //     _navigatedForSurvey = true;
+  //     Navigator.pushReplacementNamed(
+  //       context,
+  //       completed ? '/thanks' : '/after_survey',
+  //     );
+  //   } catch (_) {
+  //   }
+  // }
 
   @override
   Widget build(BuildContext context) {
-    final dayCounter = context.watch<UserDayCounter>();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _maybeRedirectAfterSurvey(dayCounter.daysSinceJoin);
-    });
+    // final dayCounter = context.watch<UserDayCounter>();
+    // WidgetsBinding.instance.addPostFrameCallback((_) {
+    //   _maybeRedirectAfterSurvey(dayCounter.daysSinceJoin);
+    // });
     return AspectViewport(
         aspect: 9 / 16,
         background: AppColors.grey100,

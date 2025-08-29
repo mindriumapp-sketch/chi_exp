@@ -108,7 +108,7 @@ class _LoginScreenState extends State<LoginScreen> {
     // 4) 라우팅 단계: 라우트 미등록/오타 등 대비
     try {
       final data = userDoc.data();
-      final bool beforeCompleted = (data?['before_survey_completed'] == true);
+      // final bool beforeCompleted = (data?['before_survey_completed'] == true);
 
       // createdAt 우선순위: Firestore(createdAt / created_at) → Auth metadata → now
       DateTime createdAt;
@@ -124,20 +124,22 @@ class _LoginScreenState extends State<LoginScreen> {
         Provider.of<UserDayCounter>(context, listen: false).setCreatedAt(createdAt);
       } catch (_) {}
 
-      if (beforeCompleted) {
-        final int days = DateTime.now().difference(createdAt).inDays + 1;
-        if (days >= 10) {
-          if (data != null && data['after_survey_completed'] == true) {
-            Navigator.pushNamedAndRemoveUntil(context, '/thanks', (_) => false);
-          } else {
-            Navigator.pushNamed(context, '/after_survey');
-          }
-        } else  {
-          Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
-        }
-      } else {
-        Navigator.pushNamed(context, '/before_survey');
-      }
+      Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
+
+      // if (beforeCompleted) {
+      //   final int days = DateTime.now().difference(createdAt).inDays + 1;
+      //   if (days >= 10) {
+      //     if (data != null && data['after_survey_completed'] == true) {
+      //       Navigator.pushNamedAndRemoveUntil(context, '/thanks', (_) => false);
+      //     } else {
+      //       Navigator.pushNamed(context, '/after_survey');
+      //     }
+      //   } else  {
+      //     Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
+      //   }
+      // } else {
+      //   Navigator.pushNamed(context, '/before_survey');
+      // }
     } catch (e, st) {
       debugPrint('[LOGIN][Routing] $e\n$st');
       _showError('화면 전환 실패: 라우트를 확인해주세요.');
