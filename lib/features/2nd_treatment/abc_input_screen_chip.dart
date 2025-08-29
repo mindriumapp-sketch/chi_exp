@@ -425,7 +425,6 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
 
     // 기본 칩 세팅
     _behaviorChips = [
-      GridItem(label: '자전거 끌고 돌아가기'),
       GridItem(label: '+ 추가', isAdd: true),
     ];
 
