@@ -15,21 +15,39 @@ class UserDayCounter extends ChangeNotifier {
 
   int get daysSinceJoin {
     if (_createdAt == null) return 0;
-    return DateTime.now().difference(_createdAt!).inDays + 1;
+    // 날짜(자정) 기준으로 계산: 시간 요소 제거
+    final start = DateTime(_createdAt!.year, _createdAt!.month, _createdAt!.day);
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    return today.difference(start).inDays + 1;
   }
 
   int getWeekNumberFromJoin(DateTime targetDate) {
     if (_createdAt == null) return 0;
-
-    final daysDiff = targetDate.difference(_createdAt!).inDays;
+    // 날짜(자정) 기준 주차 계산
+    final start = DateTime(_createdAt!.year, _createdAt!.month, _createdAt!.day);
+    final target = DateTime(targetDate.year, targetDate.month, targetDate.day);
+    final daysDiff = target.difference(start).inDays;
     return daysDiff < 0 ? 0 : (daysDiff ~/ 7) + 1;
   }
 
   void _startDailyTimer() {
     _timer?.cancel();
-    _timer = Timer.periodic(const Duration(hours: 24), (_) {
-      notifyListeners(); // 하루마다 갱신
-    });
+
+    void scheduleNextMidnightTick() {
+      final now = DateTime.now();
+      // 다음 자정(로컬) 시각
+      final nextMidnight = DateTime(now.year, now.month, now.day).add(const Duration(days: 1));
+      final wait = nextMidnight.difference(now);
+
+      _timer = Timer(wait, () {
+        // 날짜가 바뀌는 시점에 갱신 후, 다음 자정으로 재예약
+        notifyListeners();
+        scheduleNextMidnightTick();
+      });
+    }
+
+    scheduleNextMidnightTick();
   }
 
   @override
