@@ -948,9 +948,14 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
     );
   }
   void _resetIdleTimer() {
+    // If previously paused by idle/background, resume timing from now on first activity.
+    if (_isPaused) {
+      _isPaused = false;
+      _stepEnteredAt = DateTime.now();
+    }
     _idleTimer?.cancel();
     _idleTimer = Timer(_idleTimeout, () {
-      // 무활동 타임아웃 → 일시정지로 전환 후 이탈 기록
+      // On idle timeout, accumulate up to the timeout moment, then mark paused and abandoned.
       _bumpStepTimeToNow(_currentStepKey());
       _isPaused = true;
       _markAbandoned('inactive_timeout');
@@ -2061,6 +2066,12 @@ class _AbcInputScreenState extends State<AbcInputScreen> with WidgetsBindingObse
   }
 
   void _bumpStepTimeToNow(String stepKey) {
+    // If we are paused (e.g., after idle timeout/background), do not accumulate.
+    // Just reset the baseline so that the paused duration is not counted.
+    if (_isPaused) {
+      _stepEnteredAt = DateTime.now();
+      return;
+    }
     final now = DateTime.now();
     final delta = now.difference(_stepEnteredAt).inMilliseconds;
     _stepTimeMs[stepKey] = (_stepTimeMs[stepKey] ?? 0) + (delta < 0 ? 0 : delta);
