@@ -302,7 +302,7 @@ final TextEditingController _textDiaryController = TextEditingController();
             ),
         ),
         bottomNavigationBar: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+          padding: const EdgeInsets.all(16),
           child: NavigationButtons(
             leftLabel: '이전',
             rightLabel: _currentStep < 2
